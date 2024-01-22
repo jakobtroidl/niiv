@@ -12,7 +12,7 @@ import math
 from PIL import Image
 import torchvision.transforms as transforms
 
-from utils import make_coord
+from util.utils import make_coord
 
 def sort_key(path):
     # Extract numbers and convert them to integers

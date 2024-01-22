@@ -1,0 +1,7 @@
+*.zip
+events*
+logs/**
+*.pth
+wandb/**
+data/**
+__pycache__/**

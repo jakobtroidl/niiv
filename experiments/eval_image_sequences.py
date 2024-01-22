@@ -13,8 +13,6 @@ import numpy as np
 from torch.utils.data import DataLoader  # noqa: E402
 import math
 from torch.nn import functional as F
-
-from loss_functions import compute_psnr
 from ignite.metrics import PSNR
 
 

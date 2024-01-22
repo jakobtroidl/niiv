@@ -14,7 +14,6 @@ from torch.utils.data import DataLoader  # noqa: E402
 import math
 from torch.nn import functional as F
 
-from loss_functions import compute_psnr
 from ignite.metrics import PSNR
 
 
@@ -93,12 +92,6 @@ for step, (model_input, coords, gt, file_name) in enumerate(dataloader):
 
         ## compute PSNR and other metrics of isotropic test data is available 
         if dataset.has_isotropic_test_data():
-            # result_psnr = compute_psnr(prediction, gt)
-
-            # print prediction min max
-            # print("Min Max prediction", prediction.min(), prediction.max())
-            # print("Min Max GT", gt.min(), gt.max())
-
             psnr_metric.update((prediction, gt))
             result_psnr = psnr_metric.compute()
             psnr_metric.reset()

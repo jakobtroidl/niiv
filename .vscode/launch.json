@@ -8,7 +8,7 @@
             "name": "Create 2D Dataset",
             "type": "python",
             "request": "launch",
-            "module": "experiment_scripts.create_dataset",
+            "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
                 "--name=hemibrain-denoised-large-mip-0",
@@ -25,7 +25,7 @@
             "name": "Create Test Sequence",
             "type": "python",
             "request": "launch",
-            "module": "experiment_scripts.create_test_sequence",
+            "module": "experiments.create_test_sequence",
             "justMyCode": true,
             "args": [
                 "--name=hemibrain-denoised-large-mip-0",
@@ -38,7 +38,7 @@
             "name": "Train Images",
             "type": "python",
             "request": "launch",
-            "module": "experiment_scripts.train_images",
+            "module": "experiments.train_images",
             "justMyCode": true,
             "args": [
                 "--experiment_name=images-hemibrain-large-denoised",
@@ -50,7 +50,7 @@
             "name": "Eval Images",
             "type": "python",
             "request": "launch",
-            "module": "experiment_scripts.eval_images",
+            "module": "experiments.eval_images",
             "justMyCode": true,
             "args": [
                 "--experiment_name=images-h01-larger-data",
@@ -62,7 +62,7 @@
             "name": "Eval  Sequences",
             "type": "python",
             "request": "launch",
-            "module": "experiment_scripts.eval_image_sequences",
+            "module": "experiments.eval_image_sequences",
             "justMyCode": true,
             "args": [
                 "--experiment_name=images-hemibrain-large-denoised",

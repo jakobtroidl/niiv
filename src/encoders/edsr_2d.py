@@ -150,31 +150,31 @@ class EDSR2D(nn.Module):
                                    .format(name))
 
 
-def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
-                       scale=2, no_upsampling=False, rgb_range=1):
-    args = Namespace()
-    args.n_resblocks = n_resblocks
-    args.n_feats = n_feats
-    args.res_scale = res_scale
+# def make_edsr_baseline(n_resblocks=16, n_feats=64, res_scale=1,
+#                        scale=2, no_upsampling=False, rgb_range=1):
+#     args = Namespace()
+#     args.n_resblocks = n_resblocks
+#     args.n_feats = n_feats
+#     args.res_scale = res_scale
 
-    args.scale = [scale]
-    args.no_upsampling = no_upsampling
+#     args.scale = [scale]
+#     args.no_upsampling = no_upsampling
 
-    args.rgb_range = rgb_range
-    args.n_colors = 1
-    return EDSR(args)
+#     args.rgb_range = rgb_range
+#     args.n_colors = 1
+#     return EDSR(args)
 
 
-def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
-              scale=2, no_upsampling=False, rgb_range=1):
-    args = Namespace()
-    args.n_resblocks = n_resblocks
-    args.n_feats = n_feats
-    args.res_scale = res_scale
+# def make_edsr(n_resblocks=32, n_feats=256, res_scale=0.1,
+#               scale=2, no_upsampling=False, rgb_range=1):
+#     args = Namespace()
+#     args.n_resblocks = n_resblocks
+#     args.n_feats = n_feats
+#     args.res_scale = res_scale
 
-    args.scale = [scale]
-    args.no_upsampling = no_upsampling
+#     args.scale = [scale]
+#     args.no_upsampling = no_upsampling
 
-    args.rgb_range = rgb_range
-    args.n_colors = 1
-    return EDSR(args)
+#     args.rgb_range = rgb_range
+#     args.n_colors = 1
+#     return EDSR(args)

@@ -1,7 +1,7 @@
 import torch
 from utils import make_coord
 
-class SparseFeatureGrid2D():
+class FeatureGrid():
     def __init__(self, feat_unfold, local_ensemble, upsample=False):
         self.latents = None
         self.upsample = upsample

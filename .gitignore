@@ -5,3 +5,4 @@ logs/**
 wandb/**
 data/**
 __pycache__/**
+*.pyc

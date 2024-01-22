@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 
-import dataio, modules
+import dataio, models
 import configargparse
 import torch
 
@@ -45,7 +45,7 @@ with open(opt.config, 'r') as f:
     config = json.load(f)
 
 # Define the model.
-model = modules.CVR(out_features=1, encoding_config=config["cvr"], export_features=False)
+model = models.CVR(out_features=1, encoding_config=config["cvr"], export_features=False)
 model.cuda()
 
 config = config["cvr"]
@@ -99,8 +99,6 @@ for seq in seq_names:
         with torch.no_grad():
 
             prediction = model(coords=coords, image=model_input)
-            prediction = prediction["model_out"]
-
             side_length = int(math.sqrt(prediction.shape[1]))
 
             # export normal interpolated images

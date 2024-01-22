@@ -3,10 +3,8 @@ import utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from loss_functions import compute_psnr
 import torch.nn as nn
 from ignite.metrics import PSNR
-
 
 import wandb
 
@@ -27,9 +25,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     utils.cond_mkdir(checkpoints_dir)
 
     total_steps = 0
-
     train_losses = []
-
     psnr_metric = PSNR(data_range=1.0)  # Use data_range=255 for images in [0, 255]
 
 
@@ -43,15 +39,12 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
         for step, (input, coords, gt, filename) in enumerate(train_dataloader):
             
             model_output = model(input, coords)
-
-            loss = loss_fn(model_output['model_out'], gt)
+            loss = loss_fn(model_output, gt)
             train_loss.add(loss.item())
 
-            psnr_metric.update((model_output['model_out'], gt))
+            psnr_metric.update((model_output, gt))
             psnr = psnr_metric.compute()
             psnr_metric.reset()
-
-            # psnr = compute_psnr(model_output['model_out'], gt)
 
             wandb.log({"train_loss": loss.item(), "train_psnr": psnr})
             

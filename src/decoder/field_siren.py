@@ -7,18 +7,18 @@ class FieldSiren(nn.Module):
     def __init__(
         self,
         d_coordinate: int,
+        n_layers: int,
+        n_neurons: int,
         d_out: int,
     ) -> None:
         """Set up a SIREN network using the sine layers"""
         super().__init__()
 
         layers = []
-
-        layers.append(SineLayer(d_coordinate, 256))
-        layers.append(SineLayer(256, 256))
-        layers.append(SineLayer(256, 256))
-        layers.append(SineLayer(256, 256))
-        layers.append(nn.Linear(256, d_out))
+        layers.append(SineLayer(d_coordinate, n_neurons))
+        for i in range(n_layers - 1):
+            layers.append(SineLayer(n_neurons, n_neurons))
+        layers.append(nn.Linear(n_neurons, d_out))
 
         self.model = nn.Sequential(*layers)
 

@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import json
-from pos_enc import PositionalEncoding
+from src.decoder.pos_enc import PositionalEncoding
 
 class MLP(nn.Module):
 

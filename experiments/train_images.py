@@ -3,17 +3,16 @@ import sys
 import os
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 
-import dataio, utils, loss_functions, modules
-# import training_gpu as training
+from src.models import NIV
+
+import dataio, utils, loss_functions
 import training
 
-from torch.utils.data import DataLoader  # noqa: E402
+from torch.utils.data import DataLoader
 import configargparse
 from functools import partial
 import shutil
 import json
-
-import wandb
 
 command_line = ""
 for arg in sys.argv:
@@ -41,17 +40,16 @@ opt = p.parse_args()
 with open(opt.config, 'r') as f:
     config = json.load(f)
 
-video_path = opt.dataset
+data_path = opt.dataset
 
-print("Data path is {}".format(video_path))
+print("Data path is {}".format(data_path))
 
 # Define the model.
-model = modules.CVR(type='cvr', out_features=1, encoding_config=config["cvr"])
+model = NIV(type='cvr', out_features=1, encoding_config=config["cvr"])
 model.cuda()
 
 image_dataset = dataio.ImageDataset(path_to_info=opt.dataset)
 dataloader = DataLoader(image_dataset, shuffle=True, batch_size=opt.batch_size, num_workers=0)
-
 
 params = utils.get_n_params(model) # TODO update this function
 
@@ -93,7 +91,7 @@ f = open(results_file_path, 'w')
 f.write("#"*30+" Training Info "+"#"*30)
 f.write(f"\n{command_line}")
 f.write(f"\n - experiment name: {opt.experiment_name}") 
-f.write(f"\n - video name: {opt.dataset}")
+f.write(f"\n - dataset name: {opt.dataset}")
 f.write(f"\n - epochs: {opt.num_epochs}")
 f.write(f"\n - learning rate: {opt.lr}")
 f.write("#"*30+" Training Info "+"#"*30)

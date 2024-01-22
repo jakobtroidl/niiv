@@ -1,5 +1,5 @@
 import torch
-import utils
+import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os

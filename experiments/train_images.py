@@ -5,7 +5,7 @@ sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) )
 
 from src.models import NIV
 
-import dataio, utils, loss_functions
+import dataio, util.utils as utils, util.loss_functions as loss_functions
 import training
 
 from torch.utils.data import DataLoader

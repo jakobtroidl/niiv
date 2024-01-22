@@ -1,5 +1,5 @@
 import torch
-from utils import make_coord
+from util.utils import make_coord
 
 class FeatureGrid():
     def __init__(self, feat_unfold, local_ensemble, upsample=False):

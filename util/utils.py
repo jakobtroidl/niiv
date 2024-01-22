@@ -1,9 +1,7 @@
-import numpy as np
 import torch
 import os
 
 from pytorch_msssim import ms_ssim
-
 class Averager():
     def __init__(self):
         self.n = 0.0
@@ -36,14 +34,6 @@ def get_n_params(model):
 def cond_mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-
-
-def write_result_img(experiment_name, filename, img):
-    root_path = '/media/data1/sitzmann/generalization/results'
-    trgt_dir = os.path.join(root_path, experiment_name)
-
-    img = img.detach().cpu().numpy()
-    np.save(os.path.join(trgt_dir, filename), img)
 
 def write_volume_summary(volume_dataset, model, model_input, gt, writer, total_steps, prefix='train_'):
     print("write_volume_summary")

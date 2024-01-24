@@ -2,9 +2,7 @@ import argparse
 from cloudvolume import CloudVolume
 import numpy as np
 import os
-from PIL import Image
 from tqdm import tqdm
-from skimage.restoration import denoise_tv_chambolle
 
 def main(args):
 
@@ -44,18 +42,13 @@ def main(args):
         z = np.random.randint(15_000, 21_000)
             
         point = [x, y, z]
-            
-        download_size[args.anistropic_dim] = 1
 
         # get image
-        img = cv.download_point(tuple(point), size=tuple(download_size), mip=mip)
-        if args.denoise:
-            img = img.squeeze(-1)
-            img = denoise_tv_chambolle(img, weight=0.1, channel_axis=-1)
-            img = (img * 255).astype(np.uint8)  # Scaling to 0-255 and converting to uint8
+        vol = cv.download_point(tuple(point), size=tuple(download_size), mip=mip)
+        vol = vol.squeeze()
 
-        im = Image.fromarray(img.squeeze())
-        im.save(os.path.join(output_path, "{}_{}_{}.png".format(x, y, z)))
+        # save numpy array to disk
+        np.save(os.path.join(output_path, "{}_{}_{}.npy".format(x, y, z)), vol)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example Script")

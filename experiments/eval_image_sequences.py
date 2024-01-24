@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 
-import dataio, models
+import dataio
 import configargparse
 import torch
 
@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader  # noqa: E402
 import math
 from torch.nn import functional as F
 from ignite.metrics import PSNR
+from src.models import NIV
 
 
 import PIL.Image as Image  # noqa: E402
@@ -43,7 +44,7 @@ with open(opt.config, 'r') as f:
     config = json.load(f)
 
 # Define the model.
-model = models.CVR(out_features=1, encoding_config=config["cvr"], export_features=False)
+model = NIV(out_features=1, encoding_config=config["cvr"], export_features=False)
 model.cuda()
 
 config = config["cvr"]
@@ -74,7 +75,7 @@ nearest_psnr_list = []
 for seq in seq_names:
 
     '''Load Volume Dataset'''
-    dataset = dataio.ImageDataset(path_to_info=opt.dataset, train=False, folder=seq)
+    dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, train=False, folder=seq)
     dataloader = DataLoader(dataset, shuffle=False, batch_size=1, num_workers=0)
 
     seq_res_dir = os.path.join(results_dir, seq)

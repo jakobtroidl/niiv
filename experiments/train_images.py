@@ -54,13 +54,14 @@ dataloader = DataLoader(image_dataset, shuffle=True, batch_size=opt.batch_size, 
 params = utils.get_n_params(model) # TODO update this function
 
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
-if os.path.exists(root_path):
-    val = input("The model directory %s exists. Overwrite? (y/n)"%root_path)
-    if val == 'y':
-        shutil.rmtree(root_path)
-    else:
-        raise NotImplementedError("File exists Error: %s"%root_path)
-os.makedirs(root_path, exist_ok=True)
+if not os.path.exists(root_path):
+    os.makedirs(root_path, exist_ok=True)
+    # val = input("The model directory %s exists. Overwrite? (y/n)"%root_path)
+    # if val == 'y':
+    #     shutil.rmtree(root_path)
+    # else:
+    #     raise NotImplementedError("File exists Error: %s"%root_path)
+
 
 
 config_save_path = os.path.join(opt.logging_root, opt.experiment_name, "config.json")

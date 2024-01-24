@@ -3,15 +3,13 @@ import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from util.loss_functions import multi_frame_loss, image_l1
+from util.loss_functions import image_l1
 from ignite.metrics import PSNR
 import math
 
 import wandb
 
 def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, summary_fn, opt):
-
-    torch.autograd.set_detect_anomaly(True)
 
     run = wandb.init(project="continuous-volumes", group=opt.experiment_name, config=opt)
 
@@ -59,8 +57,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             xy_loss.backward(retain_graph=True)
             optim.step()
 
-            slice_output = model(data["slice"][0], data["slice"][1]) # inference on simulated xz or yz anisotropic slice
-            
+            slice_output = model(data["slice"][0], data["slice"][1]) # inference on simulated xz or yz anisotropic slice      
             overlap_axis = data["meta"][0] # 0 for x, 1 for y, both above outputs overlap either in x or y axis
             xy_overlap_idx = data["meta"][1].cuda() # z_depth of xy slice
             

@@ -57,28 +57,39 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             xy_loss.backward(retain_graph=True)
             optim.step()
 
-            slice_output = model(data["slice"][0], data["slice"][1]) # inference on simulated xz or yz anisotropic slice      
-            overlap_axis = data["meta"][0] # 0 for x, 1 for y, both above outputs overlap either in x or y axis
-            xy_overlap_idx = data["meta"][1].cuda() # z_depth of xy slice
+            slice_input = data["slice"][0]
+            slice_coords = data["slice"][1]
+            slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
+            slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
+
+            avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
+            slice_output_sparse = avg_pool(slice_output)
             
-            xy_overlap_idx = xy_overlap_idx.unsqueeze(-1)
-
-            slice_overlap_idx = data["meta"][2].cuda() # x or y depth of xz or yz slice
-            slice_overlap_idx = slice_overlap_idx.unsqueeze(-1)
-
-            # reformat to [batch, x, y]
-            slice_output = slice_output.view(-1, *(im_size, im_size))
-            batch_indices = torch.arange(xy_gt.size(0)).unsqueeze(-1)
-            row_column_indices = torch.arange(im_size)
-
-            if overlap_axis.eq(1).all(): # if overlap is in y axis
-                xy_overlap = xy_gt[batch_indices, slice_overlap_idx, row_column_indices]
-                slice_overlap = slice_output[batch_indices, row_column_indices, xy_overlap_idx]
-            elif overlap_axis.eq(0).all(): # if overlap is in x axis
-                xy_overlap = xy_gt[batch_indices, row_column_indices, slice_overlap_idx]
-                slice_overlap = slice_output[batch_indices, row_column_indices, xy_overlap_idx]
             
-            overlap_loss = image_l1(xy_overlap, slice_overlap)
+            # F.interpolate(slice_output, size=slice_input.shape[-2:], mode="nearest-exact")
+            
+            # overlap_axis = data["meta"][0] # 0 for x, 1 for y, both above outputs overlap either in x or y axis
+
+            # xy_overlap_idx = data["meta"][1].cuda() # z_depth of xy slice
+            
+            # xy_overlap_idx = xy_overlap_idx.unsqueeze(-1)
+
+            # slice_overlap_idx = data["meta"][2].cuda() # x or y depth of xz or yz slice
+            # slice_overlap_idx = slice_overlap_idx.unsqueeze(-1)
+
+            # # reformat to [batch, x, y]
+            # slice_output = slice_output.view(-1, *(im_size, im_size))
+            # batch_indices = torch.arange(xy_gt.size(0)).unsqueeze(-1)
+            # row_column_indices = torch.arange(im_size)
+
+            # if overlap_axis.eq(1).all(): # if overlap is in y axis
+            #     xy_overlap = xy_gt[batch_indices, slice_overlap_idx, row_column_indices]
+            #     slice_overlap = slice_output[batch_indices, row_column_indices, xy_overlap_idx]
+            # elif overlap_axis.eq(0).all(): # if overlap is in x axis
+            #     xy_overlap = xy_gt[batch_indices, row_column_indices, slice_overlap_idx]
+            #     slice_overlap = slice_output[batch_indices, row_column_indices, xy_overlap_idx]
+            
+            overlap_loss = image_l1(slice_input, slice_output_sparse)
             train_loss_2.add(overlap_loss.item())
 
             wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "overlap_loss": overlap_loss.item()})

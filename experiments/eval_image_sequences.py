@@ -58,7 +58,7 @@ model.load_state_dict(checkpoint['model'])
 # model.set_latent_grid(checkpoint['latent_grid'])
 
 dir = os.path.dirname(opt.dataset)
-test_seq_dir = os.path.join(dir, "test_sequence")
+test_seq_dir = os.path.join(dir, "test_sequence_final")
 
 
 # list all folder names in directory

@@ -3,6 +3,9 @@ from cloudvolume import CloudVolume
 import numpy as np
 import os
 from tqdm import tqdm
+from skimage.restoration import denoise_tv_chambolle
+import torch
+
 
 def main(args):
 
@@ -45,10 +48,16 @@ def main(args):
 
         # get image
         vol = cv.download_point(tuple(point), size=tuple(download_size), mip=mip)
-        vol = vol.squeeze()
 
-        # save numpy array to disk
-        np.save(os.path.join(output_path, "{}_{}_{}.npy".format(x, y, z)), vol)
+        if args.denoise:
+            vol_denoised = denoise_tv_chambolle(vol, weight=0.1, channel_axis=-1)
+            vol_denoised = np.squeeze(vol_denoised * 255.0).astype(np.uint8)
+             # save numpy array to disk
+            np.save(os.path.join(output_path, "{}_{}_{}_denoised.npy".format(x, y, z)), vol_denoised)
+        else:
+            # save numpy array to disk   
+            vol = np.squeeze(vol) 
+            np.save(os.path.join(output_path, "{}_{}_{}.npy".format(x, y, z)), vol)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example Script")

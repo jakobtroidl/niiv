@@ -16,6 +16,8 @@ from torch.nn import functional as F
 from ignite.metrics import PSNR
 from src.models import NIV
 
+import time
+
 
 import PIL.Image as Image  # noqa: E402
 
@@ -27,11 +29,9 @@ for arg in sys.argv:
 p = configargparse.ArgumentParser()
 p.add('-c', '--config', required=True,  help='Path to config file.')
 p.add_argument('--logging_root', type=str, default='./logs', help='root for logging')
-p.add_argument('--experiment_name', type=str, required=False, default="",
-               help='Name of subdirectory in logging_root where summaries and checkpoints will be saved.')
-
-'''Dataset configure'''
+p.add_argument('--experiment_name', type=str, required=False, default="", help='Name of subdirectory in logging_root where summaries and checkpoints will be saved.')
 p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Honeybee)")
+p.add_argument('--iteration', type=int, required=False, default=0, help="i-th iteration of model evaluation")
 
 opt = p.parse_args()
 
@@ -65,12 +65,13 @@ test_seq_dir = os.path.join(dir, "test_sequence_final")
 seq_names = os.listdir(test_seq_dir)
 
 results = {}
-results_dir = os.path.join(root_path, 'results')
+results_dir = os.path.join(root_path, 'results_iteration_{}'.format(opt.iteration))
 os.makedirs(results_dir, exist_ok=True)
 
 result_psnr_list = []
 bilinear_psnr_list = []
 nearest_psnr_list = []
+times_list = []
 
 for seq in seq_names:
 
@@ -85,6 +86,7 @@ for seq in seq_names:
     result_psnrs = []
     nearest_psnrs = []
     bilinear_psnrs = []
+    times = []
 
     psnr_metric = PSNR(data_range=1.0)
 
@@ -97,7 +99,13 @@ for seq in seq_names:
 
         with torch.no_grad():
 
+
+            start = time.time()
             prediction = model(coords=coords, image=model_input)
+            duration = time.time() - start
+
+            times.append(duration)
+
             side_length = int(math.sqrt(prediction.shape[1]))
 
             # export normal interpolated images
@@ -182,9 +190,11 @@ for seq in seq_names:
     result_psnr_list.append(np.mean(result_psnrs))
     bilinear_psnr_list.append(np.mean(bilinear_psnrs))
     nearest_psnr_list.append(np.mean(nearest_psnrs))
+    times_list.append(np.sum(times))
 
     print("-------------------------------")
     print("Average Result PSNR: {}".format(np.mean(result_psnrs)))
+    print("Result reconstruction time: {}".format(np.sum(times)))
     print("Average Bilinear PSNR: {}".format(np.mean(bilinear_psnrs)))
     print("Average Nearest PSNR: {}".format(np.mean(nearest_psnrs)))
     print("Done!")
@@ -195,10 +205,16 @@ for seq in seq_names:
         f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnrs)))
         f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnrs)))
 
+print("-------------------------------")
+print("Result PSNR: {}".format(np.mean(result_psnr_list)))
+print("Average reconstruction time: {}".format(np.mean(times_list)))
+print("Bilinear PSNR: {}".format(np.mean(bilinear_psnr_list)))
+print("Nearest PSNR: {}".format(np.mean(nearest_psnr_list)))
 
 # write average results to disk
 with open(os.path.join(results_dir, "avg_psnrs.txt"), "w") as f:
     f.write("Result PSNR: {}\n".format(np.mean(result_psnr_list)))
+    f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
     f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnr_list)))
     f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnr_list)))
         

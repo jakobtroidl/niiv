@@ -145,6 +145,11 @@ for seq in seq_names:
 
             if dataset.has_isotropic_test_data():
 
+                input_dir = os.path.join(seq_res_dir, "input")
+                if not os.path.exists(input_dir):
+                    os.makedirs(input_dir)
+                input_name = os.path.join(input_dir, "input_{}".format(file_name[0]))
+
                 res_dir = os.path.join(seq_res_dir, "result")
                 if not os.path.exists(res_dir):
                     os.makedirs(res_dir)
@@ -169,10 +174,15 @@ for seq in seq_names:
                     os.makedirs(gt_dir)
                 gt_name = os.path.join(gt_dir, "gt_{}".format(file_name[0]))
 
+
+            input = model_input.squeeze().cpu().numpy()
             image = prediction.squeeze().view(side_length, side_length).cpu().numpy()
             nearest = nearest.squeeze().cpu().numpy()
             bilinear = bilinear.squeeze().cpu().numpy()
             gt = gt.squeeze().view(bilinear.shape).cpu().numpy()
+
+            input = Image.fromarray(np.uint8(input * unit_multiplier))
+            input.save(input_name)
 
             image = Image.fromarray(np.uint8(image * unit_multiplier))
             image.save(result_name)

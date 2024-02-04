@@ -5,16 +5,16 @@
     "version": "0.1.0",
     "configurations": [
         {
-            "name": "Create 2D Dataset",
+            "name": "Create Dataset",
             "type": "python",
             "request": "launch",
             "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
-                "--name=hemibrain-denoised-large-mip-0",
+                "--name=hemibrain-volume-denoised-large-v2",
                 "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
                 "--image_size=128",
-                "--n_images=2000",
+                "--n_images=400",
                 "--train",
                 "--anistropic_dim=2",
                 "--denoise"
@@ -27,10 +27,11 @@
             "module": "experiments.create_test_sequence",
             "justMyCode": true,
             "args": [
-                "--name=hemibrain-denoised-large-mip-0",
+                "--name=hemibrain-multi-frame-large-small-images",
                 "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
                 "--mip=0",
                 "--denoise",
+                "--test_final",
             ]
         },
         {
@@ -40,32 +41,20 @@
             "module": "experiments.train_images",
             "justMyCode": true,
             "args": [
-                "--experiment_name=images-hemibrain-large-denoised",
-                "--dataset=data/hemibrain-denoised-large-mip-0/info.json",
+                "--experiment_name=hemibrain-volume-pos-enc-v2",
+                "--dataset=data/hemibrain-volume-denoised-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
         },
         {
-            "name": "Eval Images",
-            "type": "python",
-            "request": "launch",
-            "module": "experiments.eval_images",
-            "justMyCode": true,
-            "args": [
-                "--experiment_name=images-h01-larger-data",
-                "--dataset=data/minnen-denoised-mip-0-small-images-large/info.json",
-                "--config=./config/config_cvr_s.json",
-            ]
-        },
-        {
-            "name": "Eval  Sequences",
+            "name": "Eval Sequences",
             "type": "python",
             "request": "launch",
             "module": "experiments.eval_image_sequences",
             "justMyCode": true,
             "args": [
-                "--experiment_name=images-hemibrain-large-denoised",
-                "--dataset=data/hemibrain-denoised-large-mip-0/info.json",
+                "--experiment_name=hemibrain-volume-pos-enc-deeper-wider-decoder",
+                "--dataset=data/hemibrain-volume-denoised-large/info.json",
                 "--config=./config/config_cvr_s.json",
             ]
         }

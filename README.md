@@ -9,6 +9,30 @@ conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cud
 ```
 
 
+## Start and Reconnect to Training Job using tmux
+
+```bash
+tmux new -s my_training_session
+python train.py -opt options/train/train_iso_em.yml
+```
+
+Detach from the session using `Ctrl+B D`. 
+
+Reconnect to the session using
+```bash
+tmux attach -t my_training_session
+```
+
+List existing tmux sessions
+```bash
+tmux list-sessions
+```
+
+Delete tmux session
+```bash
+tmux kill-session -t session-name
+```
+
 
 
 

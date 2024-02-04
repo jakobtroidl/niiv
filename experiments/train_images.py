@@ -28,12 +28,12 @@ p.add_argument('--experiment_name', type=str, required=False, default="",
 
 # General training options
 p.add_argument('--lr', type=float, default=1e-4, help='learning rate. default=1e-2')
-p.add_argument('--num_epochs', type=int, default=6000, help='Number of epochs to train for.')
+p.add_argument('--num_epochs', type=int, default=5_000, help='Number of epochs to train for.')
 p.add_argument('--epochs_til_ckpt', type=int, default=1000, help='Time interval in seconds until checkpoint is saved.')
 p.add_argument('--steps_til_summary', type=int, default=50,
                help='Time interval in seconds until tensorboard summary is saved.')
 p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
-p.add_argument('--batch_size', type=int, default=8, help="Batch size")
+p.add_argument('--batch_size', type=int, default=24, help="Batch size")
 opt = p.parse_args()
 
 
@@ -54,13 +54,14 @@ dataloader = DataLoader(image_dataset, shuffle=True, batch_size=opt.batch_size, 
 params = utils.get_n_params(model) # TODO update this function
 
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
-if os.path.exists(root_path):
-    val = input("The model directory %s exists. Overwrite? (y/n)"%root_path)
-    if val == 'y':
-        shutil.rmtree(root_path)
-    else:
-        raise NotImplementedError("File exists Error: %s"%root_path)
-os.makedirs(root_path, exist_ok=True)
+if not os.path.exists(root_path):
+    os.makedirs(root_path, exist_ok=True)
+    # val = input("The model directory %s exists. Overwrite? (y/n)"%root_path)
+    # if val == 'y':
+    #     shutil.rmtree(root_path)
+    # else:
+    #     raise NotImplementedError("File exists Error: %s"%root_path)
+
 
 
 config_save_path = os.path.join(opt.logging_root, opt.experiment_name, "config.json")

@@ -32,7 +32,10 @@ def main(args):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    output_path = os.path.join(output_path, "test_sequence")
+    if args.test_final:
+        output_path = os.path.join(output_path, "test_sequence_final")
+    else:
+        output_path = os.path.join(output_path, "test_sequence")
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -63,15 +66,27 @@ def main(args):
             img = denoise_tv_chambolle(img, weight=0.1, channel_axis=-1)
             img = (img * 255).astype(np.uint8)  # Scaling to 0-255 and converting to uint8
 
-        for i in range(img.shape[choice]):
-            if choice == 0:
-                im = Image.fromarray(img[i, :, :].squeeze())
-            elif choice == 1:
-                im = Image.fromarray(img[:, i, :].squeeze())
-            elif choice == 2:
-                im = Image.fromarray(img[:, :, i].squeeze())
-            
-            im.save(os.path.join(seq_path, "{}.png".format(i)))
+        if args.test_final:
+            for i in range(img.shape[args.anistropic_dim]):
+                if args.anistropic_dim == 0:
+                    im = Image.fromarray(img[:, :, i].squeeze())
+                elif args.anistropic_dim == 1:
+                    im = Image.fromarray(img[i, :, :].squeeze())
+                elif args.anistropic_dim == 2:
+                    im = Image.fromarray(img[:, i, :].squeeze())
+                
+                im.save(os.path.join(seq_path, "{}.png".format(i)))
+
+        else:
+            for i in range(img.shape[choice]):
+                if choice == 0:
+                    im = Image.fromarray(img[i, :, :].squeeze())
+                elif choice == 1:
+                    im = Image.fromarray(img[:, i, :].squeeze())
+                elif choice == 2:
+                    im = Image.fromarray(img[:, :, i].squeeze())
+                
+                im.save(os.path.join(seq_path, "{}.png".format(i)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example Script")
@@ -80,9 +95,10 @@ if __name__ == "__main__":
     parser.add_argument('--anistropic_dim', type=int, help='Which dimension is anistropic. 0-->x, 1-->, 2-->z', default=2, required=False)
     parser.add_argument('--image_size', type=int, help='Pixel size of dataset images', default=128, required=False)
     parser.add_argument('--n_images', type=int, help='Number of images being downloaded', default=128, required=False)
-    parser.add_argument('--n_sequences', type=int, help='Number of images being downloaded', default=20, required=False)
+    parser.add_argument('--n_sequences', type=int, help='Number of images being downloaded', default=50, required=False)
     parser.add_argument('--mip', type=int, help='MIP level of downloaded images', default=0, required=False)
     parser.add_argument('--denoise', action="store_true", help='Whether to TV denoise images')
+    parser.add_argument('--test_final', action="store_true", help='Whether to download training or test images')
     
 
 

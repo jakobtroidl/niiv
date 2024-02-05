@@ -7,7 +7,10 @@ import dataio
 import configargparse
 import torch
 
+
+
 import configargparse
+from pynvml import *
 import json
 import numpy as np
 from torch.utils.data import DataLoader  # noqa: E402
@@ -34,6 +37,15 @@ p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., 
 p.add_argument('--iteration', type=int, required=False, default=0, help="i-th iteration of model evaluation")
 
 opt = p.parse_args()
+
+nvmlInit()
+device_id = nvmlDeviceGetHandleByIndex(0)  # Assuming you're using the first GPU
+pid = os.getpid()
+
+
+print("Process ID: {}".format(pid))
+
+
 
 # quantization
 unit_multiplier = 2.0**8-1.0
@@ -72,6 +84,7 @@ result_psnr_list = []
 bilinear_psnr_list = []
 nearest_psnr_list = []
 times_list = []
+memory_list = []
 
 for seq in seq_names:
 
@@ -87,6 +100,7 @@ for seq in seq_names:
     nearest_psnrs = []
     bilinear_psnrs = []
     times = []
+    memory = []
 
     psnr_metric = PSNR(data_range=1.0)
 
@@ -103,6 +117,17 @@ for seq in seq_names:
             start = time.time()
             prediction = model(coords=coords, image=model_input)
             duration = time.time() - start
+
+            # Get the memory info for your specific process
+            info = nvmlDeviceGetComputeRunningProcesses(device_id)
+
+            for proc in info:
+                if proc.pid == pid:
+                    gpu_mem = proc.usedGpuMemory / 1024**2
+                    memory.append(gpu_mem)
+                    break
+                else:
+                    print("Current process is not using the GPU.")
 
             times.append(duration)
 
@@ -201,12 +226,14 @@ for seq in seq_names:
     bilinear_psnr_list.append(np.mean(bilinear_psnrs))
     nearest_psnr_list.append(np.mean(nearest_psnrs))
     times_list.append(np.sum(times))
+    memory_list.append(np.mean(memory))
 
     print("-------------------------------")
     print("Average Result PSNR: {}".format(np.mean(result_psnrs)))
-    print("Result reconstruction time: {}".format(np.sum(times)))
     print("Average Bilinear PSNR: {}".format(np.mean(bilinear_psnrs)))
     print("Average Nearest PSNR: {}".format(np.mean(nearest_psnrs)))
+    print("Result Reconstruction time: {}".format(np.sum(times)))
+    print("Average Memory used: {} MB".format(np.mean(memory)))
     print("Done!")
 
     ## save results to disk
@@ -214,17 +241,22 @@ for seq in seq_names:
         f.write("Result PSNR: {}\n".format(np.mean(result_psnrs)))
         f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnrs)))
         f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnrs)))
+        f.write("Reconstruction time: {}\n".format(np.sum(times)))
+        f.write("Memory used: {} MB \n".format(np.mean(memory)))
 
 print("-------------------------------")
 print("Result PSNR: {}".format(np.mean(result_psnr_list)))
-print("Average reconstruction time: {}".format(np.mean(times_list)))
 print("Bilinear PSNR: {}".format(np.mean(bilinear_psnr_list)))
 print("Nearest PSNR: {}".format(np.mean(nearest_psnr_list)))
+print("Average reconstruction time: {}".format(np.mean(times_list)))
+print("Average Memory used: {} MB ".format(np.mean(memory_list)))
 
 # write average results to disk
 with open(os.path.join(results_dir, "avg_psnrs.txt"), "w") as f:
     f.write("Result PSNR: {}\n".format(np.mean(result_psnr_list)))
-    f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
     f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnr_list)))
     f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnr_list)))
+    f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
+    f.write("Average Memory used: {} MB".format(np.mean(memory_list)))
+
         

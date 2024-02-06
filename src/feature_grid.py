@@ -9,7 +9,7 @@ class FeatureGrid():
         self.feature_unfold = feat_unfold
         self.pos_enc = pos_encoding
     
-    def compute_features(self, latents, coords, decoder):
+    def compute_features(self, input, latents, coords, decoder):
 
         if self.feature_unfold:
             # concat each latent by it's local neighborhood
@@ -42,17 +42,21 @@ class FeatureGrid():
                 coords_[..., 1] += vy * ry + eps_shift
                 coords_.clamp_(-1 + 1e-6, 1 - 1e-6)
 
-                q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='nearest', align_corners=False)
-                q_coords = q_coords.squeeze(2).squeeze(2)
-                q_coords = q_coords.permute(0, 2, 1)
-
                 # interpolate features
                 q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='nearest', align_corners=False)
                 q_features = q_features.squeeze(2).squeeze(2)
                 q_features = q_features.permute(0, 2, 1)
 
+                q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='nearest', align_corners=False)
+                q_coords = q_coords.squeeze(2).squeeze(2)
+                q_coords = q_coords.permute(0, 2, 1)
+
+                q_input = torch.nn.functional.grid_sample(input, coords_.flip(-1), mode='nearest', align_corners=False)
+                q_input = q_input.squeeze(2).squeeze(2)
+                q_input = q_input.permute(0, 2, 1)
+
                 # rel_coord = coords_.squeeze()
-                rel_coord = coords.squeeze(1).squeeze(1) - q_coords
+                rel_coord = coords_.squeeze(1).squeeze(1) - q_coords
 
                 # compute volume for ensemble
                 volume = torch.abs(rel_coord[..., 0] * rel_coord[..., 1])
@@ -61,9 +65,9 @@ class FeatureGrid():
                 rel_coord[..., 0] *= latents.shape[-2]
                 rel_coord[..., 1] *= latents.shape[-1]
 
-                encoded_coords = self.pos_enc(rel_coord)
+                rel_coord = self.pos_enc(rel_coord)
 
-                input = torch.cat((q_features, encoded_coords), dim=-1)
+                input = torch.cat((q_features, q_input, rel_coord), dim=-1)
                 bs, q = coords.squeeze(1).squeeze(1).shape[:2]
 
                 # compute prediction for ensemble

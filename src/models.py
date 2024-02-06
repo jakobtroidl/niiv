@@ -12,7 +12,7 @@ class NIV(nn.Module):
     def __init__(self, out_features=3, encoding_config=None, latent_grid=None, export_features=False, pos_enc=True, **kwargs):
         super().__init__()
 
-        self.feat_unfold = True
+        self.feat_unfold = False
         self.local_ensemble = False
         
         if pos_enc:
@@ -38,7 +38,7 @@ class NIV(nn.Module):
         else:
             feat_dim = 1
 
-        model_in = n_features * feat_dim + n_pos
+        model_in = n_features * feat_dim + n_pos + 1
 
         # module for latent grid processing
         self.latent_grid = latent_grid
@@ -54,4 +54,4 @@ class NIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        return self.sparse_grid.compute_features(latent_grid, coords, self.decoder)
+        return self.sparse_grid.compute_features(image, latent_grid, coords, self.decoder)

@@ -7,13 +7,16 @@ import dataio
 import configargparse
 import torch
 
+
+
 import configargparse
+from pynvml import *
 import json
 import numpy as np
 from torch.utils.data import DataLoader  # noqa: E402
 import math
 from torch.nn import functional as F
-from ignite.metrics import PSNR
+from ignite.metrics import PSNR, SSIM
 from src.models import NIV
 
 import time
@@ -34,6 +37,15 @@ p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., 
 p.add_argument('--iteration', type=int, required=False, default=0, help="i-th iteration of model evaluation")
 
 opt = p.parse_args()
+
+nvmlInit()
+device_id = nvmlDeviceGetHandleByIndex(0)  # Assuming you're using the first GPU
+pid = os.getpid()
+
+
+print("Process ID: {}".format(pid))
+
+
 
 # quantization
 unit_multiplier = 2.0**8-1.0
@@ -71,7 +83,13 @@ os.makedirs(results_dir, exist_ok=True)
 result_psnr_list = []
 bilinear_psnr_list = []
 nearest_psnr_list = []
+
+result_ssim_list = []
+bilinear_ssim_list = []
+nearest_ssim_list = []
+
 times_list = []
+memory_list = []
 
 for seq in seq_names:
 
@@ -86,9 +104,16 @@ for seq in seq_names:
     result_psnrs = []
     nearest_psnrs = []
     bilinear_psnrs = []
+
+    result_ssims = []
+    nearest_ssims = []
+    bilinear_ssims = []
+    
     times = []
+    memory = []
 
     psnr_metric = PSNR(data_range=1.0)
+    ssim_metric = SSIM(data_range=1.0)
 
     model.cuda()
     model.eval()
@@ -104,9 +129,23 @@ for seq in seq_names:
             prediction = model(coords=coords, image=model_input)
             duration = time.time() - start
 
+            # Get the memory info for your specific process
+            info = nvmlDeviceGetComputeRunningProcesses(device_id)
+
+            for proc in info:
+                if proc.pid == pid:
+                    gpu_mem = proc.usedGpuMemory / 1024**2
+                    memory.append(gpu_mem)
+                    break
+
             times.append(duration)
 
+
             side_length = int(math.sqrt(prediction.shape[1]))
+
+            pred_image = prediction.view(1, side_length, side_length).unsqueeze(0)
+            gt_image = gt.view(1, side_length, side_length).unsqueeze(0)
+
 
             # export normal interpolated images
             nearest = F.interpolate(model_input, size=[side_length, side_length], mode='nearest')
@@ -117,24 +156,39 @@ for seq in seq_names:
             ## compute PSNR and other metrics of isotropic test data is available 
             if dataset.has_isotropic_test_data():
 
-                psnr_metric.update((prediction, gt))
+                psnr_metric.update((pred_image, gt_image))
                 result_psnr = psnr_metric.compute()
                 psnr_metric.reset()
                 result_psnrs.append(result_psnr)
 
+                ssim_metric.update((pred_image, gt_image))
+                result_ssim = ssim_metric.compute()
+                ssim_metric.reset()
+                result_ssims.append(result_ssim)
+
                 nearest_tmp = nearest.view(1, side_length * side_length, 1)
+                
                 psnr_metric.update((nearest_tmp, gt))
                 nearest_psnr = psnr_metric.compute()
                 psnr_metric.reset()
                 nearest_psnrs.append(nearest_psnr)
 
+                ssim_metric.update((nearest.unsqueeze(0), gt_image))
+                nearest_ssim = ssim_metric.compute()
+                ssim_metric.reset()
+                nearest_ssims.append(nearest_ssim)
+
                 bilinear_tmp = bilinear.view(1, side_length * side_length, 1)
+                
                 psnr_metric.update((bilinear_tmp, gt))
                 bilinear_psnr = psnr_metric.compute()
                 psnr_metric.reset()
                 bilinear_psnrs.append(bilinear_psnr)
 
-                # print("Result PSNR: {}, Bilinear PSNR: {}, Nearest PSNR: {}".format(result_psnr, bilinear_psnr, nearest_psnr))
+                ssim_metric.update((bilinear.unsqueeze(0), gt_image))
+                bilinear_ssim = ssim_metric.compute()
+                ssim_metric.reset()
+                bilinear_ssims.append(bilinear_ssim)
 
             result_name = os.path.join(seq_res_dir, "result_{}".format(file_name[0]))
             nearest_name = os.path.join(seq_res_dir, "nearest_{}".format(file_name[0]))
@@ -200,13 +254,26 @@ for seq in seq_names:
     result_psnr_list.append(np.mean(result_psnrs))
     bilinear_psnr_list.append(np.mean(bilinear_psnrs))
     nearest_psnr_list.append(np.mean(nearest_psnrs))
+    
+    result_ssim_list.append(np.mean(result_ssims))
+    bilinear_ssim_list.append(np.mean(bilinear_ssims))
+    nearest_ssim_list.append(np.mean(nearest_ssims))
+    
     times_list.append(np.sum(times))
+    memory_list.append(np.mean(memory))
+
 
     print("-------------------------------")
     print("Average Result PSNR: {}".format(np.mean(result_psnrs)))
-    print("Result reconstruction time: {}".format(np.sum(times)))
     print("Average Bilinear PSNR: {}".format(np.mean(bilinear_psnrs)))
     print("Average Nearest PSNR: {}".format(np.mean(nearest_psnrs)))
+
+    print("Average Result SSIM: {}".format(np.mean(result_ssims)))
+    print("Average Bilinear SSIM: {}".format(np.mean(bilinear_ssims)))
+    print("Average Nearest SSIM: {}".format(np.mean(nearest_ssims)))
+
+    print("Result Reconstruction time: {}".format(np.sum(times)))
+    print("Average Memory used: {} MB".format(np.mean(memory)))
     print("Done!")
 
     ## save results to disk
@@ -215,16 +282,42 @@ for seq in seq_names:
         f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnrs)))
         f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnrs)))
 
+        f.write("\n")
+       
+        f.write("Result SSIM: {}\n".format(np.mean(result_ssims)))
+        f.write("Bilinear SSIM: {}\n".format(np.mean(bilinear_ssims)))
+        f.write("Nearest SSIM: {}\n".format(np.mean(nearest_ssims)))
+
+        f.write("\n")
+       
+        f.write("Reconstruction time: {}\n".format(np.sum(times)))
+        f.write("Memory used: {} MB \n".format(np.mean(memory)))
+
 print("-------------------------------")
 print("Result PSNR: {}".format(np.mean(result_psnr_list)))
-print("Average reconstruction time: {}".format(np.mean(times_list)))
 print("Bilinear PSNR: {}".format(np.mean(bilinear_psnr_list)))
 print("Nearest PSNR: {}".format(np.mean(nearest_psnr_list)))
+
+print("Result SSIM: {}".format(np.mean(result_ssim_list)))
+print("Bilinear SSIM: {}".format(np.mean(bilinear_ssim_list)))
+print("Nearest SSIM: {}".format(np.mean(nearest_ssim_list)))
+
+print("Average reconstruction time: {}".format(np.mean(times_list)))
+print("Average Memory used: {} MB ".format(np.mean(memory_list)))
 
 # write average results to disk
 with open(os.path.join(results_dir, "avg_psnrs.txt"), "w") as f:
     f.write("Result PSNR: {}\n".format(np.mean(result_psnr_list)))
-    f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
     f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnr_list)))
     f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnr_list)))
-        
+
+    f.write("\n")
+
+    f.write("Result SSIM: {}\n".format(np.mean(result_ssim_list)))
+    f.write("Bilinear SSIM: {}\n".format(np.mean(bilinear_ssim_list)))
+    f.write("Nearest SSIM: {}\n".format(np.mean(nearest_ssim_list)))
+
+    f.write("\n")
+
+    f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
+    f.write("Average Memory used: {} MB".format(np.mean(memory_list)))

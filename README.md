@@ -42,6 +42,7 @@ Download public training data from GCS
 ```bash
 cd neural-volumes
 gsutil cp gs://neural-implicit-volumes/datasets/hemibrain-volume-denoised-large.zip ./data
+cd data
 unzip hemibrain-volume-denoised-large.zip
 ```
 

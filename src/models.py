@@ -12,7 +12,7 @@ class NIV(nn.Module):
     def __init__(self, out_features=3, encoding_config=None, latent_grid=None, export_features=False, pos_enc=True, **kwargs):
         super().__init__()
 
-        self.feat_unfold = False
+        self.feat_unfold = True
         self.local_ensemble = False
         
         if pos_enc:
@@ -29,11 +29,16 @@ class NIV(nn.Module):
 
 
         if self.pos_enc:
-            model_in = n_features + self.pos_enc.d_out(2)
+            n_pos =  self.pos_enc.d_out(2)
         else:
-            model_in = n_features + 2 
+            n_pos = 2 
+
         if self.feat_unfold:
-            model_in = n_features * (3**2) + 2 # expand features by local neighborhood
+            feat_dim = 3**2 # expand features by local neighborhood
+        else:
+            feat_dim = 1
+
+        model_in = n_features * feat_dim + n_pos
 
         # module for latent grid processing
         self.latent_grid = latent_grid

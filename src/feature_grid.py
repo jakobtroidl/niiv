@@ -15,12 +15,12 @@ class FeatureGrid():
             # concat each latent by it's local neighborhood
             latents = self.unfold_features(latents)
 
-        # if self.local_ensemble:
-        #     vx_lst = [-1, 1]
-        #     vy_lst = [-1, 1]
-        #     eps_shift = 1e-6
-        # else:
-        vx_lst, vy_lst, eps_shift = [0], [0], 0
+        if self.local_ensemble:
+            vx_lst = [-1, 1]
+            vy_lst = [-1, 1]
+            eps_shift = 1e-6
+        else:
+            vx_lst, vy_lst, eps_shift = [0], [0], 0
 
         # field radius (global: [-1, 1])
         rx = 2 / latents.shape[-2] / 2

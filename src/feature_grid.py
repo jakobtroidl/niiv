@@ -11,9 +11,9 @@ class FeatureGrid():
     
     def compute_features(self, latents, coords, decoder):
 
-        # if self.feature_unfold:
-        #     # concat each latent by it's local neighborhood
-        #     latents = self.unfold_features(latents)
+        if self.feature_unfold:
+            # concat each latent by it's local neighborhood
+            latents = self.unfold_features(latents)
 
         # if self.local_ensemble:
         #     vx_lst = [-1, 1]

@@ -137,8 +137,6 @@ for seq in seq_names:
                     gpu_mem = proc.usedGpuMemory / 1024**2
                     memory.append(gpu_mem)
                     break
-                else:
-                    print("Current process is not using the GPU.")
 
             times.append(duration)
 
@@ -283,10 +281,14 @@ for seq in seq_names:
         f.write("Result PSNR: {}\n".format(np.mean(result_psnrs)))
         f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnrs)))
         f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnrs)))
+
+        f.write("\n")
        
         f.write("Result SSIM: {}\n".format(np.mean(result_ssims)))
         f.write("Bilinear SSIM: {}\n".format(np.mean(bilinear_ssims)))
         f.write("Nearest SSIM: {}\n".format(np.mean(nearest_ssims)))
+
+        f.write("\n")
        
         f.write("Reconstruction time: {}\n".format(np.sum(times)))
         f.write("Memory used: {} MB \n".format(np.mean(memory)))
@@ -309,9 +311,13 @@ with open(os.path.join(results_dir, "avg_psnrs.txt"), "w") as f:
     f.write("Bilinear PSNR: {}\n".format(np.mean(bilinear_psnr_list)))
     f.write("Nearest PSNR: {}\n".format(np.mean(nearest_psnr_list)))
 
+    f.write("\n")
+
     f.write("Result SSIM: {}\n".format(np.mean(result_ssim_list)))
     f.write("Bilinear SSIM: {}\n".format(np.mean(bilinear_ssim_list)))
     f.write("Nearest SSIM: {}\n".format(np.mean(nearest_ssim_list)))
+
+    f.write("\n")
 
     f.write("Average reconstruction time: {}\n".format(np.mean(times_list)))
     f.write("Average Memory used: {} MB".format(np.mean(memory_list)))

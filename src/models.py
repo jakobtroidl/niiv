@@ -16,7 +16,7 @@ class NIV(nn.Module):
         self.local_ensemble = False
         
         if pos_enc:
-            self.pos_enc = PositionalEncoding(num_octaves=5)
+            self.pos_enc = PositionalEncoding(num_octaves=20)
         else:
             self.pos_enc = None
 

@@ -3,7 +3,7 @@ import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from util.loss_functions import image_l1
+from util.loss_functions import image_l1, charbonnier_loss
 from ignite.metrics import PSNR, SSIM
 import math
 
@@ -40,7 +40,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             
         for step, data in enumerate(train_dataloader):
 
-            avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
+            # avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
 
             xy_output = model(data["xy"][0], data["xy"][1]) # inference on simulated xy anisotropic slice
             xy_gt = data["xy"][2].squeeze(1) # ground truth xy anisotropic slice
@@ -50,7 +50,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             # xy_output_sparse = avg_pool(xy_output.unsqueeze(1))
 
-            xy_loss = image_l1(xy_output, xy_gt)
+            # xy_loss = image_l1(xy_output, xy_gt)
+            xy_loss = charbonnier_loss(xy_output, xy_gt)
             train_loss.add(xy_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -66,21 +67,23 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             xy_loss.backward(retain_graph=True)
             optim.step()
 
-            slice_input = data["slice"][0]
-            slice_coords = data["slice"][1]
-            slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
-            slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
+            # slice_input = data["slice"][0]
+            # slice_coords = data["slice"][1]
+            # slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
+            # slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
 
-            slice_output_sparse = avg_pool(slice_output)
-            overlap_loss = image_l1(slice_input, slice_output_sparse)
-            train_loss_2.add(overlap_loss.item())
+            # slice_output_sparse = avg_pool(slice_output)
+            # overlap_loss = image_l1(slice_input, slice_output_sparse)
+            # train_loss_2.add(overlap_loss.item())
 
-            wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "overlap_loss": overlap_loss.item()})
+            # wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "overlap_loss": overlap_loss.item()})
+            wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim })
 
-            # optimize based on overlap accuracy
-            optim.zero_grad()
-            overlap_loss.backward()
-            optim.step()
+
+            # # optimize based on overlap accuracy
+            # optim.zero_grad()
+            # overlap_loss.backward()
+            # optim.step()
 
             if not total_steps % steps_til_summary:
                 tqdm.write("Epoch {}, XY loss {}, Overlap loss {}, PSNR {}".format(epoch, train_loss.item(), train_loss_2.item(), psnr))

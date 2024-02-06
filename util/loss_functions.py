@@ -14,6 +14,12 @@ def image_l1(model_output, gt):
     return torch.abs(model_output - gt).mean()
 
 
+def charbonnier_loss(prediction, gt, epsilon=1e-6):
+    diff = prediction - gt
+    loss = torch.sum(torch.sqrt(diff * diff + epsilon))
+    return loss
+
+
 def multi_frame_loss(model_output, gt, overlap, overlap_gt):
 
     weight_img_loss = 1.0

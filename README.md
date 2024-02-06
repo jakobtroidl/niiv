@@ -5,7 +5,7 @@
 ```
 conda create -n niv python=3.9
 conda activate niv
-pip install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
 pip install igneous-pipeline pytorch-ignite tqdm wandb
 ```
 
@@ -42,6 +42,7 @@ Download public training data from GCS
 ```bash
 cd neural-volumes
 gsutil cp gs://neural-implicit-volumes/datasets/hemibrain-volume-denoised-large.zip ./data
+cd data
 unzip hemibrain-volume-denoised-large.zip
 ```
 

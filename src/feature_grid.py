@@ -66,8 +66,11 @@ class FeatureGrid():
                 rel_coord[..., 1] *= latents.shape[-1]
 
                 rel_coord = self.pos_enc(rel_coord)
+                pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-                input = torch.cat((q_features, q_input, rel_coord), dim=-1)
+
+                # TODO: add absolute coordinate (Yiqing)
+                input = torch.cat((q_features, q_input, rel_coord, pe_coords), dim=-1)
                 bs, q = coords.squeeze(1).squeeze(1).shape[:2]
 
                 # compute prediction for ensemble

@@ -10,13 +10,10 @@ import webbrowser
 
 def add_example_layers(state):
     a = np.load(
-        "/home/jakobtroidl/Desktop/NVP/nearest-nvp-mip-0.npy"
+        "/home/jakobtroidl/Desktop/neural-volumes/data/ista/20230716_ExPID114_17_50_53_clahe_normalized_float32_0_1.npy"
     )
 
     print(a.shape)
-
-    b = a < 0.08160067
-    b = b.astype(np.uint8) * 255
 
     dimensions = neuroglancer.CoordinateSpace(
         names=["x", "y", "z"], units="nm", scales=[1, 1, 1]
@@ -29,24 +26,10 @@ def add_example_layers(state):
             data=a,
             dimensions=dimensions,
             voxel_offset=(1, 1, 1),
-        ),
-        shader="""
-void main() {
-  emitRGB(vec3(toNormalized(getDataValue(0)),
-               toNormalized(getDataValue(1)),
-               toNormalized(getDataValue(2))));
-}
-""",
-    )
-    state.layers.append(
-        name="b",
-        layer=neuroglancer.LocalVolume(
-            data=b,
-            dimensions=dimensions,
             volume_type="image",
-        ),
+        )
     )
-    return a, b
+    return a
 
 
 if __name__ == "__main__":
@@ -56,6 +39,6 @@ if __name__ == "__main__":
     neuroglancer.cli.handle_server_arguments(args)
     viewer = neuroglancer.Viewer()
     with viewer.txn() as s:
-        a, b = add_example_layers(s)
+        a = add_example_layers(s)
 
     webbrowser.open_new(viewer.get_viewer_url())

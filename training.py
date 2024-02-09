@@ -6,7 +6,7 @@ import os
 from util.loss_functions import image_l1, charbonnier_loss
 from ignite.metrics import PSNR, SSIM
 import math
-
+import src.regularizer as regularizer
 import wandb
 
 def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, summary_fn, opt):
@@ -18,6 +18,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
     train_loss = utils.Averager()
     train_loss_2 = utils.Averager()
+
+    gradient_regularizer = regularizer.GradientRegularizer()
 
     summaries_dir = os.path.join(model_dir, 'summaries')
     utils.cond_mkdir(summaries_dir)
@@ -48,11 +50,24 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             im_size = int(math.sqrt(xy_output.shape[-2]))
             xy_output = xy_output.view(-1, *(im_size, im_size))
 
+
+            # TODO: YIQING: do here instead than lower
+            slice_input = data["slice"][0]
+            slice_coords = data["slice"][1]
+            slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
+            slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
+
             # xy_output_sparse = avg_pool(xy_output.unsqueeze(1))
 
-            # xy_loss = image_l1(xy_output, xy_gt)
-            xy_loss = charbonnier_loss(xy_output, xy_gt)
-            train_loss.add(xy_loss.item())
+            xy_loss = image_l1(xy_output, xy_gt)
+            # xy_loss = charbonnier_loss(xy_output, xy_gt)
+            edge_loss = gradient_regularizer(xy_output)
+            # print min and max of edge_loss
+            # print(edge_loss.min(), edge_loss.max())
+
+            total_loss = xy_loss + 0.1 * (1.0 - edge_loss)
+
+            train_loss.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
             psnr = psnr_metric.compute()
@@ -64,20 +79,20 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             # optimize based on xy reconstruction accuracy
             optim.zero_grad()
-            xy_loss.backward(retain_graph=True)
+            total_loss.backward(retain_graph=True)
             optim.step()
 
-            # slice_input = data["slice"][0]
-            # slice_coords = data["slice"][1]
-            # slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
-            # slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
+            slice_input = data["slice"][0]
+            slice_coords = data["slice"][1]
+            slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
+            slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
 
             # slice_output_sparse = avg_pool(slice_output)
             # overlap_loss = image_l1(slice_input, slice_output_sparse)
             # train_loss_2.add(overlap_loss.item())
 
             # wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "overlap_loss": overlap_loss.item()})
-            wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim })
+            wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "edge_reqularizer": edge_loss.item() })
 
 
             # # optimize based on overlap accuracy

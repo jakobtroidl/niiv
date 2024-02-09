@@ -19,7 +19,8 @@ class ImageDatasetTest(Dataset):
         info = json.loads(open(path_to_info).read())
         self.is_train = train
         self.folder = folder
-        self.path = os.path.join(os.path.dirname(path_to_info), "train" if self.is_train else "test_sequence_final")
+        print(os.path.dirname(path_to_info))
+        self.path = os.path.join(os.path.dirname(path_to_info), "train" if self.is_train else "test_sequence")
 
         if self.folder is not None:
             self.path = os.path.join(self.path, self.folder)

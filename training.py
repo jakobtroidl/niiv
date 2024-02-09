@@ -57,11 +57,13 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             slice_loss = charbonnier_loss(slice_input, slice_output)
             im_gradient = gradient_regularizer(xy_output)
 
-            weight = torch.sigmoid(torch.tensor(epoch) - 10) # weight the gradient regularizer less at the beginning of training
-            weight = torch.clamp(weight, min=1e-4)
-            grad_reg = weight * im_gradient
+            # weight = torch.sigmoid(torch.tensor(epoch) - 10) # weight the gradient regularizer less at the beginning of training
+            # weight = torch.clamp(weight, min=1e-4)
+            # grad_reg = weight * im_gradient
+            grad_reg = 0.001 * im_gradient
 
-            total_loss = (0.75 * xy_loss) + (0.25 * slice_loss) - 0.1 * im_gradient
+
+            total_loss = (0.75 * xy_loss) + (0.25 * slice_loss) - grad_reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -85,7 +87,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                     })
 
             if not total_steps % steps_til_summary:
-                 tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
+                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

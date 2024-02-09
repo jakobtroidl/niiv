@@ -16,9 +16,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     optim = torch.optim.Adam(lr=lr, params=model.parameters())
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, milestones=[2000, 4000, 6000, 8000], gamma=0.5)
 
-    train_loss = utils.Averager()
-    train_loss_2 = utils.Averager()
-
+    total_loss_avg = utils.Averager()
+    avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
     gradient_regularizer = regularizer.GradientRegularizer()
 
     summaries_dir = os.path.join(model_dir, 'summaries')
@@ -32,6 +31,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     psnr_metric = PSNR(data_range=1.0)  # Use data_range=255 for images in [0, 255]
     ssim_metric = SSIM(data_range=1.0)  # Use data_range=255 for images in [0, 255]
 
+    model.train()
 
     for epoch in tqdm(range(epochs)):
         if not epoch % epochs_til_checkpoint and epoch:
@@ -41,33 +41,24 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                            np.array(train_losses))
             
         for step, data in enumerate(train_dataloader):
-
-            # avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
-
             xy_output = model(data["xy"][0], data["xy"][1]) # inference on simulated xy anisotropic slice
             xy_gt = data["xy"][2].squeeze(1) # ground truth xy anisotropic slice
 
             im_size = int(math.sqrt(xy_output.shape[-2]))
             xy_output = xy_output.view(-1, *(im_size, im_size))
 
-
-            # TODO: YIQING: do here instead than lower
             slice_input = data["slice"][0]
             slice_coords = data["slice"][1]
             slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
             slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
+            slice_output = avg_pool(slice_output)
 
-            # xy_output_sparse = avg_pool(xy_output.unsqueeze(1))
-
-            xy_loss = image_l1(xy_output, xy_gt)
-            # xy_loss = charbonnier_loss(xy_output, xy_gt)
+            xy_loss = charbonnier_loss(xy_output, xy_gt)
+            slice_loss = charbonnier_loss(slice_input, slice_output)
             edge_loss = gradient_regularizer(xy_output)
-            # print min and max of edge_loss
-            # print(edge_loss.min(), edge_loss.max())
 
-            total_loss = xy_loss + 0.1 * (1.0 - edge_loss)
-
-            train_loss.add(total_loss.item())
+            total_loss = 0.75 * xy_loss + 0.25 * slice_loss # TODO: add edge_loss
+            total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
             psnr = psnr_metric.compute()
@@ -82,26 +73,10 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             total_loss.backward(retain_graph=True)
             optim.step()
 
-            slice_input = data["slice"][0]
-            slice_coords = data["slice"][1]
-            slice_output = model(slice_input, slice_coords) # inference on simulated xz or yz anisotropic slice      
-            slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
-
-            # slice_output_sparse = avg_pool(slice_output)
-            # overlap_loss = image_l1(slice_input, slice_output_sparse)
-            # train_loss_2.add(overlap_loss.item())
-
-            # wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "overlap_loss": overlap_loss.item()})
-            wandb.log({"train_loss": xy_loss.item(), "train_psnr": psnr, "train_ssim": ssim, "edge_reqularizer": edge_loss.item() })
-
-
-            # # optimize based on overlap accuracy
-            # optim.zero_grad()
-            # overlap_loss.backward()
-            # optim.step()
+            wandb.log({"Total Loss": total_loss_avg.item(), "XY Loss": xy_loss.item(), "Overlap Loss": slice_loss.item(), "train_psnr": psnr, "train_ssim": ssim, })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, XY loss {}, Overlap loss {}, PSNR {}".format(epoch, train_loss.item(), train_loss_2.item(), psnr))
+                tqdm.write("Epoch {}, Total Loss {}, PSNR {}".format(epoch, total_loss.item(), psnr))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

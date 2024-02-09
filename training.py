@@ -14,7 +14,9 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     run = wandb.init(project="continuous-volumes", group=opt.experiment_name, config=opt)
 
     optim = torch.optim.Adam(lr=lr, params=model.parameters())
+    
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, milestones=[2000, 4000, 6000, 8000], gamma=0.5)
+    gradient_scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, milestones=[2000, 4000, 6000, 8000], gamma=0.5)
 
     total_loss_avg = utils.Averager()
     avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
@@ -57,7 +59,11 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             slice_loss = charbonnier_loss(slice_input, slice_output)
             edge_loss = gradient_regularizer(xy_output)
 
-            total_loss = 0.75 * xy_loss + 0.25 * slice_loss # TODO: add edge_loss
+            weight = min(1.0, ((1.0/30.0) * epoch) ** 2)
+            w_e_loss = 600.0 * edge_loss
+            grad_reg = w_e_loss * weight
+
+            total_loss = 0.75 * xy_loss + 0.25 * slice_loss - grad_reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -68,15 +74,20 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             ssim = ssim_metric.compute()
             ssim_metric.reset()
 
-            # optimize based on xy reconstruction accuracy
             optim.zero_grad()
             total_loss.backward(retain_graph=True)
             optim.step()
 
-            wandb.log({"Total Loss": total_loss_avg.item(), "XY Loss": xy_loss.item(), "Overlap Loss": slice_loss.item(), "train_psnr": psnr, "train_ssim": ssim, })
+            wandb.log({"Total Loss": total_loss_avg.item(), 
+                       "XY Loss": xy_loss.item(), 
+                       "Overlap Loss": slice_loss.item(), 
+                       "Edge Loss": edge_loss.item(),
+                       "train_psnr": psnr, 
+                       "train_ssim": ssim,
+                    })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, PSNR {}".format(epoch, total_loss.item(), psnr))
+                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

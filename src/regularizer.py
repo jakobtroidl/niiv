@@ -14,7 +14,9 @@ class GradientRegularizer(nn.Module):
         x = x.unsqueeze(1)
         dy, dx = image_gradients(x)
         mag = torch.sqrt(dy**2 + dx**2)
-        return mag.sum() / (x_dim * y_dim)
+        sum = torch.sum(mag, dim=(-2, -1))
+        avg_sum = torch.mean(sum.squeeze())
+        return avg_sum
 
 class FourierRegularizer(nn.Module):
     def __init__(self, filter_radius=25):

@@ -7,16 +7,18 @@ class GradientRegularizer(nn.Module):
     def __init__(self):
         super(GradientRegularizer, self).__init__()
 
-    def forward(self, x):
+    def forward(self, x, weight=1.0):
         # Compute the gradient of the image
         # and returns the sum of the gradient magnitudes normalized by the image size
-        x_dim, y_dim = x.shape[-2:]
         x = x.unsqueeze(1)
         dy, dx = image_gradients(x)
-        mag = torch.sqrt(dy**2 + dx**2)
-        sum = torch.sum(mag, dim=(-2, -1))
-        avg_sum = torch.mean(sum.squeeze())
-        return avg_sum
+        mag = torch.sqrt(dy**2 + dx**2 + 1e-9)
+        # sum = torch.sum(mag, dim=(-2, -1))
+        # avg_sum = torch.mean(sum.squeeze())
+        # return avg_sum
+        reg = -torch.mean(torch.log(mag + 1e-9)) * weight
+        return reg
+
 
 class FourierRegularizer(nn.Module):
     def __init__(self, filter_radius=25):

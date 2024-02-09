@@ -55,14 +55,13 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             xy_loss = charbonnier_loss(xy_output, xy_gt)
             slice_loss = charbonnier_loss(slice_input, slice_output)
-            edge_loss = gradient_regularizer(xy_output)
+            im_gradient = gradient_regularizer(xy_output)
 
-            # weight = min(1.0, ((1.0/30.0) * epoch) ** 2)
-            weight = torch.sigmoid(torch.tensor(epoch) - 40)
-            weight = torch.clamp(weight, min=1e-6)
-            grad_reg = weight * edge_loss
+            weight = torch.sigmoid(torch.tensor(epoch) - 10) # weight the gradient regularizer less at the beginning of training
+            weight = torch.clamp(weight, min=1e-4)
+            grad_reg = weight * im_gradient
 
-            total_loss = (0.75 * xy_loss) + (0.25 * slice_loss) - grad_reg
+            total_loss = (0.75 * xy_loss) + (0.25 * slice_loss) - 0.1 * im_gradient
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -80,13 +79,13 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             wandb.log({"Total Loss": total_loss_avg.item(), 
                        "XY Loss": xy_loss.item(), 
                        "Overlap Loss": slice_loss.item(), 
-                       "Edge Loss": edge_loss.item(),
+                       "Edge Loss": im_gradient.item(),
                        "train_psnr": psnr, 
                        "train_ssim": ssim,
                     })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
+                 tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

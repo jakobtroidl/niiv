@@ -2,18 +2,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics.functional.image import image_gradients
+from util.transforms import crop_image_border
 
 class GradientRegularizer(nn.Module):
     def __init__(self):
         super(GradientRegularizer, self).__init__()
 
     def forward(self, x, weight=0.01):
-        # Compute the gradient of the image
-        # and returns the sum of the gradient magnitudes normalized by the image size
         x = x.unsqueeze(1)
+        x = crop_image_border(x, 5)
         dy, dx = image_gradients(x)
         mag = torch.sqrt(dy**2 + dx**2 + 1e-9)
-        x = 1.0 - torch.mean(torch.abs(mag))
+        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 7)
+        x = torch.clamp(x, 0.0, 1.0)
         return x * weight
 
 

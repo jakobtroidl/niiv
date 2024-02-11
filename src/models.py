@@ -13,7 +13,7 @@ class NIV(nn.Module):
         super().__init__()
 
         self.feat_unfold = False
-        self.local_ensemble = False
+        self.local_ensemble = True
         
         if pos_enc:
             self.pos_enc = PositionalEncoding(num_octaves=10)

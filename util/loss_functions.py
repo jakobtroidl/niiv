@@ -1,4 +1,14 @@
 import torch
+from torchmetrics.image import StructuralSimilarityIndexMeasure
+
+class SSIM_Loss(torch.nn.Module):
+    def __init__(self, range=1.0):
+        super(SSIM_Loss, self).__init__()
+        self.ssim = StructuralSimilarityIndexMeasure(data_range=range).to('cuda')
+
+    def forward(self, prediction, gt):
+        return 1.0 - self.ssim(prediction, gt)
+
 
 def image_mse(mask, model_output, gt):
     model_output = model_output.squeeze()

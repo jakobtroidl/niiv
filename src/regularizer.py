@@ -1,0 +1,46 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torchmetrics.functional.image import image_gradients
+from util.transforms import crop_image_border
+
+class GradientRegularizer(nn.Module):
+    def __init__(self):
+        super(GradientRegularizer, self).__init__()
+
+    def forward(self, x, weight=0.01):
+        x = x.unsqueeze(1)
+        x = crop_image_border(x, 5)
+        dy, dx = image_gradients(x)
+        mag = torch.sqrt(dy**2 + dx**2 + 1e-9)
+        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 7)
+        x = torch.clamp(x, 0.0, 1.0)
+        return x * weight
+
+
+class FourierRegularizer(nn.Module):
+    def __init__(self, filter_radius=25):
+        super(FourierRegularizer, self).__init__()
+        self.filter_radius = filter_radius
+
+    def forward(self, x):
+        # Compute the 2D Fourier Transform of the image
+        f_transform = torch.fft.fft2(x)
+        f_shifted = torch.fft.fftshift(f_transform)
+
+        # Create a low-pass filter mask (circular mask)
+        rows, cols = x.shape[-2:]
+        crow, ccol = rows // 2 , cols // 2
+        low_pass = torch.zeros((rows, cols), dtype=torch.uint8)
+        y, x = torch.meshgrid[:rows, :cols]
+        mask_area = (x - ccol) ** 2 + (y - crow) ** 2 <= self.filter_radius**2
+        low_pass[mask_area] = 1
+
+        # Apply the mask/filter
+        f_shifted_filtered = f_shifted * low_pass
+
+        # Inverse Fourier Transform to get the denoised image back
+        f_ishifted = torch.fft.ifftshift(f_shifted_filtered)
+        img_back = torch.fft.ifft2(f_ishifted)
+        img_back = torch.abs(img_back)
+        return img_back

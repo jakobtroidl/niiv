@@ -19,7 +19,8 @@ class ImageDatasetTest(Dataset):
         info = json.loads(open(path_to_info).read())
         self.is_train = train
         self.folder = folder
-        self.path = os.path.join(os.path.dirname(path_to_info), "train" if self.is_train else "test_sequence_final")
+        print(os.path.dirname(path_to_info))
+        self.path = os.path.join(os.path.dirname(path_to_info), "train" if self.is_train else "test_sequence")
 
         if self.folder is not None:
             self.path = os.path.join(self.path, self.folder)
@@ -114,14 +115,6 @@ class ImageDataset(Dataset):
 
         xy_gt = xy.unsqueeze(0)
         slice = slice.unsqueeze(0)
-        # if self.denoise: 
-        #     xy_gt_np = xy_gt.cpu().detach().numpy()
-        #     xy_gt_np = denoise_tv_chambolle(xy_gt_np, weight=0.1, channel_axis=0)
-        #     xy_gt = torch.from_numpy(xy_gt_np).cuda()
-
-        #     slice_gt_np = slice.cpu().detach().numpy()
-        #     slice_gt_np = denoise_tv_chambolle(slice_gt_np, weight=0.1, channel_axis=0)
-        #     slice = torch.from_numpy(slice_gt_np).cuda()
 
         xy_inputs = self.avg_pool2D(xy_gt)
 

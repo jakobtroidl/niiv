@@ -13,10 +13,10 @@ class NIV(nn.Module):
         super().__init__()
 
         self.feat_unfold = False
-        self.local_ensemble = False
+        self.local_ensemble = True
         
         if pos_enc:
-            self.pos_enc = PositionalEncoding(num_octaves=20)
+            self.pos_enc = PositionalEncoding(num_octaves=10)
         else:
             self.pos_enc = None
 
@@ -29,7 +29,7 @@ class NIV(nn.Module):
 
 
         if self.pos_enc:
-            n_pos =  self.pos_enc.d_out(2)
+            n_pos =  self.pos_enc.d_out(2) * 2
         else:
             n_pos = 2 
 

@@ -82,19 +82,8 @@ class FeatureGrid():
         for pred, area in zip(predictions, areas):
             out = out + pred * (area / tot_area).unsqueeze(-1)
 
+        out = torch.clamp(out, 0, 1)
         return out
-        
-        # if self.local_ensemble:
-        #     volumes.reverse()
-        
-        # test = 0
-        # out = 0
-        # for pred, volume in zip(predictions, volumes):
-        #     rel_vol = (volume / total_volumes).unsqueeze(-1)
-        #     test += volume / total_volumes
-        #     out = out + pred * rel_vol
-
-        # return out
     
     def unfold_features(self, latents):
         unfold_list = [-1, 0, 1]

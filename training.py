@@ -3,7 +3,7 @@ import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from util.loss_functions import image_l1, charbonnier_loss
+from util.loss_functions import image_l1, charbonnier_loss, SSIM_Loss
 from ignite.metrics import PSNR, SSIM
 import math
 import src.regularizer as regularizer
@@ -31,6 +31,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     psnr_metric = PSNR(data_range=1.0)  # Use data_range=255 for images in [0, 255]
     ssim_metric = SSIM(data_range=1.0)  # Use data_range=255 for images in [0, 255]
 
+    ssim_loss = SSIM_Loss(range=1.0)
+
     model.train()
 
     for epoch in tqdm(range(epochs)):
@@ -53,17 +55,18 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             slice_output = slice_output.view(-1, *(im_size, im_size)).unsqueeze(1)
             slice_output = avg_pool(slice_output)
 
-            xy_loss = charbonnier_loss(xy_output, xy_gt)
-            slice_loss = charbonnier_loss(slice_input, slice_output)
-            im_gradient = gradient_regularizer(xy_output)
+            # xy_loss = charbonnier_loss(xy_output, xy_gt)
+            # slice_loss = charbonnier_loss(slice_input, slice_output)
 
-            # weight = torch.sigmoid(torch.tensor(epoch) - 10) # weight the gradient regularizer less at the beginning of training
-            # weight = torch.clamp(weight, min=1e-4)
-            # grad_reg = weight * im_gradient
-            grad_reg = 0.001 * im_gradient
+            xy_loss = ssim_loss(xy_output.unsqueeze(1), xy_gt.unsqueeze(1))
+            # slice_loss = ssim_loss(slice_input.unsqueeze(1), slice_output.unsqueeze(1))
 
+            grad_reg = gradient_regularizer(xy_output, weight=1.0)
 
-            total_loss = (0.75 * xy_loss) + (0.25 * slice_loss) - grad_reg
+            epoch_weight = torch.sigmoid(torch.tensor(epoch) - 30) # weight the gradient regularizer less at the beginning of training
+            # grad_reg = epoch_weight * grad_reg
+
+            total_loss = 0.7 * xy_loss + 0.3 * grad_reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -75,19 +78,19 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             ssim_metric.reset()
 
             optim.zero_grad()
-            total_loss.backward(retain_graph=True)
+            total_loss.backward()
             optim.step()
 
             wandb.log({"Total Loss": total_loss_avg.item(), 
                        "XY Loss": xy_loss.item(), 
-                       "Overlap Loss": slice_loss.item(), 
-                       "Edge Loss": im_gradient.item(),
+                       # "Overlap Loss": slice_loss.item(), 
+                       "Edge Loss": grad_reg.item(),
                        "train_psnr": psnr, 
                        "train_ssim": ssim,
                     })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Weight Component {}.".format(epoch, total_loss.item(), psnr, grad_reg))
+                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Grad Regularizer Term {}.".format(epoch, total_loss.item(), psnr, grad_reg))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

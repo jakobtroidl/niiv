@@ -3,17 +3,38 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics.functional.image import image_gradients
 from util.transforms import crop_image_border
+import matplotlib.pyplot as plt
+
 
 class GradientRegularizer(nn.Module):
     def __init__(self):
         super(GradientRegularizer, self).__init__()
 
-    def forward(self, x, weight=0.01):
+    def forward(self, x, epoch, step, weight=0.01):
         x = x.unsqueeze(1)
         x = crop_image_border(x, 5)
         dy, dx = image_gradients(x)
         mag = torch.sqrt(dy**2 + dx**2 + 1e-9)
-        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 7)
+        mag = torch.clamp(mag, 0.0, 0.35) # disallow large gradients to dominate the loss
+
+        if epoch % 5 == 0 and step == 0 :
+            ## plot histogram of dy, dx and mag
+            plt.hist(dy.flatten().detach().cpu().numpy(), bins=100)
+            plt.savefig('histograms/dy-histogram-{}.png'.format(epoch)) 
+            plt.clf()   
+            plt.hist(dx.flatten().detach().cpu().numpy(), bins=100)
+            plt.savefig('histograms/dx-histogram-{}.png'.format(epoch))
+            plt.clf()
+            plt.hist(mag.flatten().detach().cpu().numpy(), bins=100)
+            plt.savefig('histograms/mag-histogram-{}.png'.format(epoch))
+            plt.clf()
+
+        # print(mag.shape)
+        # print("Mag Min Max: ", torch.min(mag), torch.max(mag))
+        # mag = torch.clamp(mag, 0.0, 0.8)
+
+        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 10)
+        # x = 1.0 - torch.mean(torch.abs(mag))
         x = torch.clamp(x, 0.0, 1.0)
         return x * weight
 

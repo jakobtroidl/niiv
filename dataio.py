@@ -12,6 +12,27 @@ from skimage.restoration import denoise_tv_chambolle
 
 from util.utils import make_coord
 
+def create_dir(path, folder):
+    path = os.path.join(path, folder)
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path 
+
+def save_images(path, images, names, metrics=None, metric_idx=None):
+    for i in range(images.shape[0]):
+        image = images[i, ...].squeeze()
+        name = str(names[i])
+        if metrics is not None:
+            splits = name.split(".")
+            metric = str(metrics[i][metric_idx].item())
+            metric = metric.replace(".", "_")
+            name = "{}_{}.{}".format(splits[0], metric, splits[1])
+        image = image.detach().cpu().numpy()
+        image = np.moveaxis(image, 0, -1)
+        image = (image * 255).astype(np.uint8)
+        image = Image.fromarray(image)
+        image.save(os.path.join(path, name))
+
 
 class ImageDatasetTest(Dataset):
     def __init__(self, path_to_info, train=True, folder=None) -> None:
@@ -19,7 +40,6 @@ class ImageDatasetTest(Dataset):
         info = json.loads(open(path_to_info).read())
         self.is_train = train
         self.folder = folder
-        print(os.path.dirname(path_to_info))
         self.path = os.path.join(os.path.dirname(path_to_info), "train" if self.is_train else "test_sequence")
 
         if self.folder is not None:
@@ -53,11 +73,8 @@ class ImageDatasetTest(Dataset):
         gt_linear = gt.permute(1, 2, 0)
         gt_linear = gt_linear.view(-1, gt_linear.shape[-1])
 
-
         coords = make_coord(batched_gt.shape[-2:]).cuda()
         return [input, coords, gt_linear, file_name]
-        
-
 
 class ImageDataset(Dataset):
     def __init__(self, path_to_info, train=True, folder=None) -> None:

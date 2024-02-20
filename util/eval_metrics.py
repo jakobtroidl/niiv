@@ -1,5 +1,24 @@
 import torch
 from torch.fft import fft2, fftshift
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+
+def write_metrics_string(metrics, names):
+    out = ""
+    for i, name in enumerate(names):
+        out += f"{name}: {metrics[:, i].mean().item():.2f}, "
+    return out
+
+
+def compute_all_metrics(pred, gt, im_max=1.0, low_pass_radius=25, im_size=(128, 128)):
+    image_psnr = compute_metric(ImagePSNR(), pred, gt)
+    image_ssim = compute_metric(ImageSSIM(), pred, gt)
+    clipped_fourier_psnr = compute_metric(ClippedFourierPSNR(im_max, low_pass_radius, im_size), pred, gt)
+
+    return torch.stack((image_psnr, image_ssim, clipped_fourier_psnr), dim=1)
+
+
+def compute_metric(metric, pred, gt):
+    return metric(pred, gt)
 
 class LowPassFilter(torch.nn.Module):
     def __init__(self, rows, cols) -> None:
@@ -27,6 +46,24 @@ class ClippedFourierPSNR(torch.nn.Module):
         n_pixels = prediction.shape[-1] * prediction.shape[-2]
         pred_fourier = fftshift(fft2(prediction)) * self.low_pass(self.threshold)
         gt_fourier = fftshift(fft2(gt)) * self.low_pass(self.threshold)
-        sum_sq_error = torch.sum(torch.abs(pred_fourier - gt_fourier) ** 2)
+        sq_error = torch.abs(pred_fourier - gt_fourier) ** 2
+        sum_sq_error = torch.sum(sq_error, dim=[-3, -2, -1])
         cf_psnr = 20 * torch.log10(self.im_max * n_pixels) - 10 * torch.log10(sum_sq_error)
-        return cf_psnr.item()
+        return cf_psnr
+    
+class ImagePSNR(torch.nn.Module):
+    def __init__(self, im_max=1.0):
+        super(ImagePSNR, self).__init__()
+        self.psnr_metric = PeakSignalNoiseRatio(data_range=im_max, reduction='none', dim=[1, 2, 3]).cuda()
+
+    def forward(self, prediction, gt):
+        return self.psnr_metric(prediction, gt)
+
+
+class ImageSSIM(torch.nn.Module):
+    def __init__(self, im_max=1.0):
+        super(ImageSSIM, self).__init__()
+        self.ssim_metric = StructuralSimilarityIndexMeasure(data_range=im_max, reduction='none').cuda()
+
+    def forward(self, prediction, gt):
+        return self.ssim_metric(prediction, gt)

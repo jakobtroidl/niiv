@@ -43,15 +43,15 @@ class FeatureGrid():
                 coords_.clamp_(-1 + 1e-6, 1 - 1e-6)
 
                 # interpolate features
-                q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='nearest', align_corners=False)
+                q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='bilinear', align_corners=False)
                 q_features = q_features.squeeze(2).squeeze(2)
                 q_features = q_features.permute(0, 2, 1)
 
-                q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='nearest', align_corners=False)
+                q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='bilinear', align_corners=False)
                 q_coords = q_coords.squeeze(2).squeeze(2)
                 q_coords = q_coords.permute(0, 2, 1)
 
-                q_input = torch.nn.functional.grid_sample(image, coords_.flip(-1), mode='nearest', align_corners=False)
+                q_input = torch.nn.functional.grid_sample(image, coords_.flip(-1), mode='bilinear', align_corners=False)
                 q_input = q_input.squeeze(2).squeeze(2)
                 q_input = q_input.permute(0, 2, 1)
 

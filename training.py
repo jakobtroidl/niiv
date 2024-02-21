@@ -26,12 +26,15 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     checkpoints_dir = os.path.join(model_dir, 'checkpoints')
     utils.cond_mkdir(checkpoints_dir)
 
+    
+
     total_steps = 0
     train_losses = []
     psnr_metric = PSNR(data_range=1.0)  # Use data_range=255 for images in [0, 255]
     ssim_metric = SSIM(data_range=1.0)  # Use data_range=255 for images in [0, 255]
 
     ssim_loss = SSIM_Loss(range=1.0)
+    mse_loss = torch.nn.MSELoss()
 
     model.train()
 
@@ -58,15 +61,18 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # xy_loss = charbonnier_loss(xy_output, xy_gt)
             # slice_loss = charbonnier_loss(slice_input, slice_output)
 
-            xy_loss = ssim_loss(xy_output.unsqueeze(1), xy_gt.unsqueeze(1))
-            # slice_loss = ssim_loss(slice_input.unsqueeze(1), slice_output.unsqueeze(1))
+            xy_loss_ssim = ssim_loss(xy_output.unsqueeze(1), xy_gt.unsqueeze(1))
+            xy_loss_mse = 10 * mse_loss(xy_output, xy_gt)
 
-            grad_reg = gradient_regularizer(xy_output, weight=1.0)
+            # plot_histogram = epoch % 5 == 0 and step == 0 
+            grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
 
-            epoch_weight = torch.sigmoid(torch.tensor(epoch) - 30) # weight the gradient regularizer less at the beginning of training
+            # epoch_weight = torch.sigmoid(torch.tensor(epoch) - 30) # weight the gradient regularizer less at the beginning of training
             # grad_reg = epoch_weight * grad_reg
 
-            total_loss = 0.7 * xy_loss + 0.3 * grad_reg
+            weighted_reg = 0.3 * grad_reg
+
+            total_loss = xy_loss_ssim + xy_loss_mse # + weighted_reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -82,7 +88,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             optim.step()
 
             wandb.log({"Total Loss": total_loss_avg.item(), 
-                       "XY Loss": xy_loss.item(), 
+                       "XY Loss MSE": xy_loss_mse.item(), 
+                        "XY Loss SSIM": xy_loss_ssim.item(),
                        # "Overlap Loss": slice_loss.item(), 
                        "Edge Loss": grad_reg.item(),
                        "train_psnr": psnr, 
@@ -90,7 +97,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                     })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, PSNR {}, Grad Regularizer Term {}.".format(epoch, total_loss.item(), psnr, grad_reg))
+                tqdm.write("Epoch {}, Total Loss {}, XY Loss MSE {}, XY Loss SSIM {}, Weighted Grad Regularizer Term {}, PSNR {}, ".format(epoch, total_loss.item(), xy_loss_mse, xy_loss_ssim, weighted_reg, psnr))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),
@@ -112,4 +119,3 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                 }, os.path.join(checkpoints_dir, f'model_final.pth'))
         
     return psnr
-

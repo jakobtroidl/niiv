@@ -3,17 +3,44 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics.functional.image import image_gradients
 from util.transforms import crop_image_border
+import matplotlib.pyplot as plt
+
 
 class GradientRegularizer(nn.Module):
     def __init__(self):
         super(GradientRegularizer, self).__init__()
+        self.sobel_x = torch.tensor([[-0.25, 0, 0.25], [-0.5, 0, 0.5], [-0.25, 0, 0.25]], dtype=torch.float32).view(1, 1, 3, 3).cuda()
+        self.sobel_y = torch.tensor([[-0.25, -0.5, -0.25], [0, 0, 0], [0.25, 0.5, 0.25]], dtype=torch.float32).view(1, 1, 3, 3).cuda()
 
-    def forward(self, x, weight=0.01):
+
+    def forward(self, x, epoch, step, weight=0.01):
         x = x.unsqueeze(1)
-        x = crop_image_border(x, 5)
-        dy, dx = image_gradients(x)
-        mag = torch.sqrt(dy**2 + dx**2 + 1e-9)
-        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 7)
+        # dy, dx = image_gradients(x)
+
+        x_padded = F.pad(x, (1, 1, 1, 1), mode='replicate')
+
+        G_x = F.conv2d(x_padded, self.sobel_x)
+        G_y = F.conv2d(x_padded, self.sobel_y)
+
+        mag = torch.sqrt(G_x**2 + G_y**2 + 1e-9)
+        # mag = mag - 0.05
+        # mag = torch.clamp(mag, 0.0, 0.35) # disallow noise like and large gradients to dominate the loss
+        mag = crop_image_border(mag, 5)
+
+
+        # if epoch % 5 == 0 and step == 0 :
+        #     ## plot histogram of dy, dx and mag
+        #     plt.hist(dy.flatten().detach().cpu().numpy(), bins=100)
+        #     plt.savefig('histograms/dy-histogram-{}.png'.format(epoch)) 
+        #     plt.clf()   
+        #     plt.hist(dx.flatten().detach().cpu().numpy(), bins=100)
+        #     plt.savefig('histograms/dx-histogram-{}.png'.format(epoch))
+        #     plt.clf()
+        #     plt.hist(mag.flatten().detach().cpu().numpy(), bins=100)
+        #     plt.savefig('histograms/mag-histogram-{}.png'.format(epoch))
+        #     plt.clf()
+
+        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 2)
         x = torch.clamp(x, 0.0, 1.0)
         return x * weight
 

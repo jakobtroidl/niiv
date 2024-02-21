@@ -59,7 +59,7 @@ model.cuda()
 model.eval()
 
 dir = os.path.dirname(opt.dataset)
-test_seq_dir = os.path.join(dir, "test_sequence_small")
+test_seq_dir = os.path.join(dir, "test")
 results_dir = create_dir(root_path, 'results_iteration_{}'.format(opt.iteration))
 
 metric_names = ["PSNR", "SSIM", "CF_PSNR"]
@@ -73,8 +73,8 @@ memory_list = []
 seq_names = os.listdir(test_seq_dir)
 for seq in seq_names:
 
-    dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, train=False, folder=seq)
-    dataloader = DataLoader(dataset, shuffle=False, batch_size=128, num_workers=0)
+    dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, name=seq)
+    dataloader = DataLoader(dataset, shuffle=False, batch_size=23, num_workers=0)
 
     seq_res_dir = create_dir(results_dir, seq)
     result_metrics = torch.empty(0, len(metric_names)).cuda()

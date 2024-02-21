@@ -12,8 +12,8 @@
       "n_colors": 1
     },
     "network": {
-      "n_neurons": 512,
-      "n_hidden_layers": 7
+      "n_neurons": 256,
+      "n_hidden_layers": 5
     }
   }
 }

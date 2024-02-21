@@ -39,8 +39,8 @@
             "module": "experiments.train_images",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-yiqing-test-v3",
-                "--dataset=data/hemibrain-volume-denoised-large/info.json",
+                "--experiment_name=hemibrain-volume-noisy-loss-ablation",
+                "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
         },
@@ -48,12 +48,13 @@
             "name": "Eval Sequences",
             "type": "python",
             "request": "launch",
-            "module": "experiments.eval_image_sequences",
+            "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-yiqing-test-v3",
-                "--dataset=data/hemibrain-volume-denoised-large/info.json",
+                "--experiment_name=hemibrain-volume-noisy-loss-ablation",
+                "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
+                "--iteration=70"
             ]
         }
     ]

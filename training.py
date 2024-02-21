@@ -62,7 +62,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # slice_loss = charbonnier_loss(slice_input, slice_output)
 
             xy_loss_ssim = ssim_loss(xy_output.unsqueeze(1), xy_gt.unsqueeze(1))
-            xy_loss_mse = 10 * mse_loss(xy_output, xy_gt)
+            xy_loss_mse = 9 * mse_loss(xy_output, xy_gt)
 
             # plot_histogram = epoch % 5 == 0 and step == 0 
             grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
@@ -70,9 +70,9 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # epoch_weight = torch.sigmoid(torch.tensor(epoch) - 30) # weight the gradient regularizer less at the beginning of training
             # grad_reg = epoch_weight * grad_reg
 
-            weighted_reg = 0.3 * grad_reg
+            weighted_reg = 1 * grad_reg
 
-            total_loss = xy_loss_ssim + xy_loss_mse # + weighted_reg
+            total_loss = xy_loss_ssim + xy_loss_mse + weighted_reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -97,7 +97,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                     })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, XY Loss MSE {}, XY Loss SSIM {}, Weighted Grad Regularizer Term {}, PSNR {}, ".format(epoch, total_loss.item(), xy_loss_mse, xy_loss_ssim, weighted_reg, psnr))
+                tqdm.write("Epoch {}, Total Loss {}, XY Loss MSE {}, XY Loss SSIM {}, Grad Regularizer Term {}, PSNR {}, ".format(epoch, total_loss.item(), xy_loss_mse, xy_loss_ssim, grad_reg, psnr))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

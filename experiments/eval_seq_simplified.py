@@ -169,4 +169,3 @@ output += "Memory: {} MB\n".format(np.mean(memory_list))
 print(output)
 with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:
     f.write(output)
-

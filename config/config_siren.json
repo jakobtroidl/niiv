@@ -1,0 +1,10 @@
+{
+    "siren": {
+        "network": {
+            "in_dim": 3,
+            "out_dim": 1,
+            "n_neurons": 256,
+            "n_hidden_layers": 3
+        }
+    }
+}

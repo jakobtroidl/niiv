@@ -7,6 +7,7 @@ from PIL import Image
 import numpy as np
 import os
 import gc
+from tqdm import tqdm
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
@@ -26,48 +27,37 @@ def train(opt):
 
     # Set up the dataset, field, optimizer, and loss function.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
     dataset = SIRENData(opt.dataset)
-    field = FieldSiren(config["siren"]).to(device)
-    optimizer = torch.optim.Adam(
-        field.parameters(),
-        lr=opt.lr,
-    )
-    loss_fn = nn.MSELoss()
 
-    # Optionally re-map the outputs to the neural field so they're in range [0, 1].
+    # load the field from checkpoint
+    path = os.path.join(log_dir, "model_latest.pth")
+    ckpt = torch.load(path)
+
+    field = FieldSiren(config["siren"]).to(device)
     field = nn.Sequential(
         field,
         nn.Sigmoid(),
     )
+    field.load_state_dict(ckpt['model'])
+    field.eval()
 
-    # Fit the field to the dataset.
-    for iteration in (progress := trange(opt.num_iterations)):
-        optimizer.zero_grad()
-        samples, values = dataset.random_sample(opt.batch_size)
-        predicted = field(samples)
-        loss = loss_fn(predicted, values)
-        loss.backward()
-        optimizer.step()
-
-        if iteration % opt.steps_til_summary == 0:
-            # Log the loss to the progress bar.
-            description = f"Training (loss: {loss.item():.4f})\n"
-            pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
-            gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
-            description += f"PSNR (dB): {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
-            # description += f"SSIM: {torch.mean(ssim(pred_unsq, gt_unsq)).item():.4f}"
-            progress.desc = description
-        
-        if iteration % opt.epochs_til_ckpt == 0:
-            # Save the model checkpoint.
-            torch.save(
-                {
-                    "model": field.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                },
-                os.path.join(log_dir, "model_latest.pth"),
-            )
-                
+    res_dir = create_dir(log_dir, "results_iteration_{}".format(0))
+    gt_coords, gt_values = dataset.sample_gt()
+            
+    for i in tqdm(range(gt_coords.shape[-1])):
+        im_size = 128
+        z_coords = gt_coords[..., i].squeeze().view(-1, im_size**2).permute(1, 0)
+        z_predicted = field(z_coords)
+        z_predicted = z_predicted.view(im_size, im_size)
+        psnr_val = torch.mean(psnr(z_predicted, gt_values[..., i]))
+        im = z_predicted.squeeze().cpu().detach().numpy()
+        im = im * 255
+        im = im.astype(np.uint8)
+        im = Image.fromarray(im)
+        name = "siren_{}_psnr_{}.png".format(i, psnr_val.item())
+        out = os.path.join(res_dir, name)
+        im.save(out)
 
 if __name__ == "__main__":
 

@@ -33,6 +33,21 @@ class SIRENData():
         values = volume[x, y, z].unsqueeze(1)
 
         return coordinates, values
+    
+    def sample_gt(self):
+        X, Y, Z = self.gt_grid_size()
+
+        # make coords for X, Y
+        x = torch.arange(X).float() / X
+        y = torch.arange(Y).float() / Y
+        z = torch.arange(Z).float() / Z
+        x, y, z = torch.meshgrid(x, y, z)
+        coordinates = torch.stack((x, y, z), dim=0).to(self.device)
+
+        # sample the gt
+        return coordinates, self.gt
+
+
 
     def d_coordinate(self):
         return 3

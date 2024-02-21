@@ -54,7 +54,31 @@
                 "--experiment_name=hemibrain-volume-noisy-loss-ablation",
                 "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=70"
+                "--iteration=71"
+            ]
+        },
+        {
+            "name": "Train SIREN",
+            "type": "python",
+            "request": "launch",
+            "module": "benchmarks.siren.train",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=hemibrain-volume-noisy-siren",
+                "--dataset=data/hemibrain-volume-noisy-large/train/15024_19583_16759.npy",
+                "--config=./config/config_siren.json"
+            ]
+        },
+        {
+            "name": "Test SIREN",
+            "type": "python",
+            "request": "launch",
+            "module": "benchmarks.siren.test",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=hemibrain-volume-noisy-siren",
+                "--dataset=data/hemibrain-volume-noisy-large/train/15024_19583_16759.npy",
+                "--config=./config/config_siren.json"
             ]
         }
     ]

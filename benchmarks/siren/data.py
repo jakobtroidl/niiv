@@ -29,6 +29,7 @@ class SIRENData():
         coordinates = (
             torch.stack((x, y, z), dim=1).float() / torch.tensor(volume.shape).float()
         )
+        coordinates = 2 * coordinates - 1
         coordinates = coordinates.to(self.device)
         values = volume[x, y, z].unsqueeze(1)
 
@@ -43,6 +44,7 @@ class SIRENData():
         z = torch.arange(Z).float() / Z
         x, y, z = torch.meshgrid(x, y, z)
         coordinates = torch.stack((x, y, z), dim=0).to(self.device)
+        coordinates = 2 * coordinates - 1
 
         # sample the gt
         return coordinates, self.gt

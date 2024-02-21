@@ -84,7 +84,7 @@ if __name__ == "__main__":
     p.add_argument('--steps_til_summary', type=int, default=50,
                 help='Time interval in seconds until tensorboard summary is saved.')
     p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
-    p.add_argument('--batch_size', type=int, default=6, help="Batch size")
+    p.add_argument('--batch_size', type=int, default=1024, help="Batch size")
     # p.add_argument('--remap_outputs', action='store_true', help="Remap the outputs to [0, 1] using a sigmoid function.")
     opt = p.parse_args()
 

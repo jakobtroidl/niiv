@@ -42,7 +42,7 @@ def train(opt):
     field.load_state_dict(ckpt['model'])
     field.eval()
 
-    res_dir = create_dir(log_dir, "results_iteration_{}".format(0))
+    res_dir = create_dir(log_dir, "results_iteration_{}".format(opt.iteration))
     gt_coords, gt_values = dataset.sample_gt()
             
     for i in tqdm(range(gt_coords.shape[-1])):
@@ -75,7 +75,7 @@ if __name__ == "__main__":
                 help='Time interval in seconds until tensorboard summary is saved.')
     p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
     p.add_argument('--batch_size', type=int, default=6, help="Batch size")
-    # p.add_argument('--remap_outputs', action='store_true', help="Remap the outputs to [0, 1] using a sigmoid function.")
+    p.add_argument('--iteration', type=int, help="i-th iteration of model evaluation. Default is 0.", default=0)
     opt = p.parse_args()
 
     train(opt)

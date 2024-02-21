@@ -28,7 +28,6 @@ def save_images(path, images, names, metrics=None, metric_idx=None):
             metric = metric.replace(".", "_")
             name = "{}_{}.{}".format(splits[0], metric, splits[1])
         image = image.detach().cpu().numpy()
-        image = np.moveaxis(image, 0, -1)
         image = (image * 255).astype(np.uint8)
         image = Image.fromarray(image)
         image.save(os.path.join(path, name))

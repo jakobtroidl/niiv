@@ -11,12 +11,12 @@
             "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
-                "--name=hemibrain-volume-noisy-large",
+                "--name=hemibrain-volume-test-vols",
                 "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
                 "--image_size=128",
-                "--n_images=400",
+                "--n_vols=400",
                 "--train",
-                "--anistropic_dim=2",
+                "--coord_list_path=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/coords.json"
             ]
         },
         {
@@ -78,7 +78,8 @@
             "args": [
                 "--experiment_name=hemibrain-volume-noisy-siren",
                 "--dataset=data/hemibrain-volume-noisy-large/train/15024_19583_16759.npy",
-                "--config=./config/config_siren.json"
+                "--config=./config/config_siren.json",
+                "--iteration=2"
             ]
         }
     ]

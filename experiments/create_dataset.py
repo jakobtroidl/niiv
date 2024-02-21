@@ -4,7 +4,7 @@ import numpy as np
 import os
 from tqdm import tqdm
 from skimage.restoration import denoise_tv_chambolle
-import torch
+import json
 
 
 def main(args):
@@ -36,13 +36,23 @@ def main(args):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    n_vols = args.n_vols
+
+    if args.coord_list_path:
+        with open(args.coord_list_path, 'r') as file:
+            data = json.load(file)
+        n_vols = len(data)
+
     # load dataset
-    for i in tqdm(range(args.n_images)):
+    for i in tqdm(range(n_vols)):
         download_size = [args.image_size, args.image_size, args.image_size]
 
-        x = np.random.randint(15_000, 21_000) # assuming x,y is the high resolution axis
-        y = np.random.randint(15_000, 21_000)
-        z = np.random.randint(15_000, 21_000)
+        if args.coord_list_path:
+            x, y, z = data[i]
+        else:
+            x = np.random.randint(15_000, 21_000) # assuming x,y is the high resolution axis
+            y = np.random.randint(15_000, 21_000)
+            z = np.random.randint(15_000, 21_000)
             
         point = [x, y, z]
 
@@ -64,10 +74,12 @@ if __name__ == "__main__":
     parser.add_argument('--name', type=str, help='Name of dataset', required=True)
     parser.add_argument('--path', type=str, help='Path to ng precomputed file', required=True)
     parser.add_argument('--train', action="store_true", help='Whether to download training or test images')
-    parser.add_argument('--anistropic_dim', type=int, help='Which dimension is anistropic. 0-->x, 1-->, 2-->z', default=2, required=True)
+    # parser.add_argument('--anistropic_dim', type=int, help='Which dimension is anistropic. 0-->x, 1-->, 2-->z', default=2, required=True)
     parser.add_argument('--image_size', type=int, help='Pixel size of dataset images', default=128, required=True)
-    parser.add_argument('--n_images', type=int, help='Number of images being downloaded', default=1000, required=True)
     parser.add_argument('--denoise', action="store_true", help='Whether to apply variation denoising (TV)')
+    parser.add_argument('--coord_list_path', type=str, help='List of 3D coordinates that contain volume centers', default=None, required=False)
+    parser.add_argument('--n_vols', type=int, help='Number of images being downloaded', default=200, required=True)
+
 
     args = parser.parse_args()
     main(args)

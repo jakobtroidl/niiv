@@ -16,10 +16,13 @@ def create_dir(path, folder):
         os.makedirs(path)
     return path 
 
-def save_images(path, images, names, metrics=None, metric_idx=None):
+def save_images(path, images, names=None, metrics=None, metric_idx=None):
     for i in range(images.shape[0]):
         image = images[i, ...].squeeze()
-        name = str(names[i])
+        if names is None:
+            name = str(i) + ".png"
+        else:
+            name = str(names[i])
         if metrics is not None:
             splits = name.split(".")
             metric = str(metrics[i][metric_idx].item())

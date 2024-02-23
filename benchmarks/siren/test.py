@@ -1,14 +1,11 @@
 import torch
 import configargparse
 import json
-from PIL import Image
-import numpy as np
 import os
-from tqdm import tqdm
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
-from util.eval_metrics import ImagePSNR, ImageSSIM
+from util.eval_metrics import compute_all_metrics, write_metrics_string
 from dataio import create_dir, save_images
 
 def train(opt):
@@ -16,8 +13,7 @@ def train(opt):
     with open(opt.config, 'r') as f:
         config = json.load(f)
 
-    psnr = ImagePSNR()
-    ssim = ImageSSIM()
+    metric_names = ["PSNR", "SSIM", "CF_PSNR"]
 
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -43,22 +39,32 @@ def train(opt):
             field.load_state_dict(ckpt['model'])
             field.eval()
 
-            res_dir = create_dir(data_log_dir, "results_iteration_{}".format(opt.iteration))
+            res_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "results")
+            gt_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "gt")
             gt_coords, gt_values = dataset.sample_gt()
-                    
-            for i in tqdm(range(gt_coords.shape[-1])):
-                im_size = 128
-                z_coords = gt_coords[..., i].squeeze().view(-1, im_size**2).permute(1, 0)
-                z_predicted = field(z_coords)
-                z_predicted = z_predicted.view(im_size, im_size)
-                psnr_val = torch.mean(psnr(z_predicted, gt_values[..., i]))
-                im = z_predicted.squeeze().cpu().detach().numpy()
-                im = im * 255
-                im = im.astype(np.uint8)
-                im = Image.fromarray(im)
-                name = "siren_{}_psnr_{}.png".format(i, psnr_val.item())
-                out = os.path.join(res_dir, name)
-                im.save(out)
+
+            gt_coords_linear = gt_coords.view(-1, gt_coords.shape[-1] * gt_coords.shape[-2] * gt_coords.shape[-3])
+            gt_coords_linear = torch.permute(gt_coords_linear, (1, 0))
+
+            pred_values_linear = field(gt_coords_linear)
+
+            pred_values = pred_values_linear.view(gt_values.shape).squeeze()
+            pred_values = pred_values.unsqueeze(1)
+            gt_values = gt_values.squeeze().unsqueeze(1)
+
+            metrics = compute_all_metrics(pred_values, gt_values)
+            metric_string = write_metrics_string(metrics, metric_names)
+
+            output = "-------------------------------\n"
+            output += "Sequence: {}\n".format(file)
+            output += "Avg Result Metrics: {}\n".format(metric_string)
+            print(output)
+
+            with open(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration), "results.txt"), "w") as f:
+                f.write(output)
+            
+            save_images(res_dir, pred_values, metrics=metrics, metric_idx=0)
+            save_images(gt_dir, gt_values)
 
 if __name__ == "__main__":
 

@@ -8,7 +8,7 @@ import os
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
 from util.eval_metrics import ImagePSNR
-from dataio import create_dir, save_images
+from dataio import create_dir
 
 def train(opt):
 
@@ -17,48 +17,45 @@ def train(opt):
 
     psnr = ImagePSNR()
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
-
-    # Set up the dataset, field, optimizer, and loss function.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    dataset = SIRENData(opt.dataset)
-    field = FieldSiren(config["siren"]).to(device)
-    optimizer = torch.optim.Adam(
-        field.parameters(),
-        lr=opt.lr,
-    )
     loss_fn = nn.MSELoss()
 
-    field = nn.Sequential(
-        field,
-        nn.Sigmoid(),
-    )
+    # list all files in the dataset directory
+    files = os.listdir(opt.dataset)
 
-    # Fit the field to the dataset.
-    for iteration in (progress := trange(opt.num_iterations)):
-        optimizer.zero_grad()
-        samples, values = dataset.random_sample(opt.batch_size)
-        predicted = field(samples)
-        loss = loss_fn(predicted, values)
-        loss.backward()
-        optimizer.step()
+    for file in files:
+        path = os.path.join(opt.dataset, file)
+        data_dir = create_dir(log_dir, file)
+        dataset = SIRENData(path)
+        field = FieldSiren(config["siren"]).to(device)
+        optimizer = torch.optim.Adam(field.parameters(), lr=opt.lr)
 
-        if iteration % opt.steps_til_summary == 0:
-            # Log the loss to the progress bar.
-            description = f"Training (loss: {loss.item():.4f})\n"
-            pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
-            gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
-            description += f"PSNR: {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
-            progress.desc = description
-        
-        if iteration % opt.epochs_til_ckpt == 0:
-            # Save the model checkpoint.
-            torch.save(
-                {
-                    "model": field.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                },
-                os.path.join(log_dir, "model_latest.pth"),
-            )
+        # Fit the field to the dataset.
+        for iteration in (progress := trange(opt.num_iterations)):
+            optimizer.zero_grad()
+            samples, values = dataset.random_sample(opt.batch_size)
+            predicted = field(samples)
+            loss = loss_fn(predicted, values)
+            loss.backward()
+            optimizer.step()
+
+            if iteration % opt.steps_til_summary == 0:
+                # Log the loss to the progress bar.
+                description = f"Training (loss: {loss.item():.4f})\n"
+                pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
+                gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
+                description += f"PSNR: {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
+                progress.desc = description
+            
+            if iteration % opt.epochs_til_ckpt == 0:
+                # Save the model checkpoint.
+                torch.save(
+                    {
+                        "model": field.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                    },
+                    os.path.join(data_dir, "model_latest.pth"),
+                )
 
 if __name__ == "__main__":
 
@@ -72,9 +69,9 @@ if __name__ == "__main__":
     p.add_argument('--lr', type=float, default=1e-4, help='learning rate. default=1e-2')
     p.add_argument('--num_iterations', type=int, default=20000, help='Number of epochs to train for.')
     p.add_argument('--epochs_til_ckpt', type=int, default=1000, help='Time interval in seconds until checkpoint is saved.')
-    p.add_argument('--steps_til_summary', type=int, default=50,
+    p.add_argument('--steps_til_summary', type=int, default=100,
                 help='Time interval in seconds until tensorboard summary is saved.')
-    p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
+    p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g. path to folder of .npy volumes). ")
     p.add_argument('--batch_size', type=int, default=1024, help="Batch size")
     opt = p.parse_args()
 

@@ -18,6 +18,7 @@ class FieldSiren(torch.nn.Module):
         for _ in range(net["n_hidden_layers"]):
             layers.append(SineLayer(net["n_neurons"], net["n_neurons"]))
         layers.append(nn.Linear(net["n_neurons"], net["out_dim"]))
+        layers.append(nn.Sigmoid())
         self.model = nn.Sequential(*layers)
 
     def forward(self, coordinates):

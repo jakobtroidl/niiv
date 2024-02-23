@@ -3,14 +3,11 @@ from torch import nn
 from tqdm import trange
 import configargparse
 import json
-from PIL import Image
-import numpy as np
 import os
-import gc
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
-from util.eval_metrics import ImagePSNR, ImageSSIM
+from util.eval_metrics import ImagePSNR
 from dataio import create_dir, save_images
 
 def train(opt):
@@ -19,10 +16,7 @@ def train(opt):
         config = json.load(f)
 
     psnr = ImagePSNR()
-    ssim = ImageSSIM()
-
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
-
 
     # Set up the dataset, field, optimizer, and loss function.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -34,7 +28,6 @@ def train(opt):
     )
     loss_fn = nn.MSELoss()
 
-    # Optionally re-map the outputs to the neural field so they're in range [0, 1].
     field = nn.Sequential(
         field,
         nn.Sigmoid(),
@@ -54,8 +47,7 @@ def train(opt):
             description = f"Training (loss: {loss.item():.4f})\n"
             pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
             gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
-            description += f"PSNR (dB): {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
-            # description += f"SSIM: {torch.mean(ssim(pred_unsq, gt_unsq)).item():.4f}"
+            description += f"PSNR: {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
             progress.desc = description
         
         if iteration % opt.epochs_til_ckpt == 0:
@@ -67,7 +59,6 @@ def train(opt):
                 },
                 os.path.join(log_dir, "model_latest.pth"),
             )
-                
 
 if __name__ == "__main__":
 
@@ -85,7 +76,6 @@ if __name__ == "__main__":
                 help='Time interval in seconds until tensorboard summary is saved.')
     p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
     p.add_argument('--batch_size', type=int, default=1024, help="Batch size")
-    # p.add_argument('--remap_outputs', action='store_true', help="Remap the outputs to [0, 1] using a sigmoid function.")
     opt = p.parse_args()
 
     train(opt)

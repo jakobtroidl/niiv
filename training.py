@@ -3,7 +3,7 @@ import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from util.loss_functions import image_l1, charbonnier_loss, SSIM_Loss
+from util.loss_functions import SSIM_Loss
 from ignite.metrics import PSNR, SSIM
 import math
 import src.regularizer as regularizer

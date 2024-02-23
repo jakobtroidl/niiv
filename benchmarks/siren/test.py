@@ -1,12 +1,9 @@
 import torch
-from torch import nn
-from tqdm import trange
 import configargparse
 import json
 from PIL import Image
 import numpy as np
 import os
-import gc
 from tqdm import tqdm
 
 from benchmarks.siren.data import SIRENData
@@ -23,41 +20,45 @@ def train(opt):
     ssim = ImageSSIM()
 
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
-
-
-    # Set up the dataset, field, optimizer, and loss function.
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
-    dataset = SIRENData(opt.dataset)
 
-    # load the field from checkpoint
-    path = os.path.join(log_dir, "model_latest.pth")
-    ckpt = torch.load(path)
+    files = os.listdir(opt.dataset)
 
-    field = FieldSiren(config["siren"]).to(device)
-    field = nn.Sequential(
-        field,
-        nn.Sigmoid(),
-    )
-    field.load_state_dict(ckpt['model'])
-    field.eval()
+    with torch.no_grad():
 
-    res_dir = create_dir(log_dir, "results_iteration_{}".format(opt.iteration))
-    gt_coords, gt_values = dataset.sample_gt()
-            
-    for i in tqdm(range(gt_coords.shape[-1])):
-        im_size = 128
-        z_coords = gt_coords[..., i].squeeze().view(-1, im_size**2).permute(1, 0)
-        z_predicted = field(z_coords)
-        z_predicted = z_predicted.view(im_size, im_size)
-        psnr_val = torch.mean(psnr(z_predicted, gt_values[..., i]))
-        im = z_predicted.squeeze().cpu().detach().numpy()
-        im = im * 255
-        im = im.astype(np.uint8)
-        im = Image.fromarray(im)
-        name = "siren_{}_psnr_{}.png".format(i, psnr_val.item())
-        out = os.path.join(res_dir, name)
-        im.save(out)
+        for file in files:
+            data = os.path.join(opt.dataset, file)
+            data_log_dir = os.path.join(log_dir, file)
+            dataset = SIRENData(data)
+
+            # load the field from checkpoint
+            model_path = os.path.join(data_log_dir, "model_latest.pth")
+            # check if model path exists
+            if not os.path.exists(model_path):
+                print("Model {} does not exists. Skipping...".format(file))
+                continue
+
+            ckpt = torch.load(model_path)
+            field = FieldSiren(config["siren"]).to(device)
+            field.load_state_dict(ckpt['model'])
+            field.eval()
+
+            res_dir = create_dir(data_log_dir, "results_iteration_{}".format(opt.iteration))
+            gt_coords, gt_values = dataset.sample_gt()
+                    
+            for i in tqdm(range(gt_coords.shape[-1])):
+                im_size = 128
+                z_coords = gt_coords[..., i].squeeze().view(-1, im_size**2).permute(1, 0)
+                z_predicted = field(z_coords)
+                z_predicted = z_predicted.view(im_size, im_size)
+                psnr_val = torch.mean(psnr(z_predicted, gt_values[..., i]))
+                im = z_predicted.squeeze().cpu().detach().numpy()
+                im = im * 255
+                im = im.astype(np.uint8)
+                im = Image.fromarray(im)
+                name = "siren_{}_psnr_{}.png".format(i, psnr_val.item())
+                out = os.path.join(res_dir, name)
+                im.save(out)
 
 if __name__ == "__main__":
 

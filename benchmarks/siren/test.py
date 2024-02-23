@@ -14,13 +14,12 @@ def train(opt):
         config = json.load(f)
 
     metric_names = ["PSNR", "SSIM", "CF_PSNR"]
-
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
     files = os.listdir(opt.dataset)
 
     with torch.no_grad():
+        result_metrics_all = torch.empty(0, len(metric_names)).cuda()
 
         for file in files:
             data = os.path.join(opt.dataset, file)
@@ -53,6 +52,7 @@ def train(opt):
             gt_values = gt_values.squeeze().unsqueeze(1)
 
             metrics = compute_all_metrics(pred_values, gt_values)
+            result_metrics_all = torch.cat((result_metrics_all, metrics), dim=0)
             metric_string = write_metrics_string(metrics, metric_names)
 
             output = "-------------------------------\n"
@@ -65,6 +65,15 @@ def train(opt):
             
             save_images(res_dir, pred_values, metrics=metrics, metric_idx=0)
             save_images(gt_dir, gt_values)
+    
+    result_metric_string = write_metrics_string(result_metrics_all, metric_names)
+    output = "-------------------------------\n"
+    output += "Summary Results\n"
+    output += "Avg Result Metrics: {}\n".format(result_metric_string)
+
+    print(output)
+    with open(os.path.join(log_dir, "avg_result.txt"), "w") as f:
+        f.write(output)
 
 if __name__ == "__main__":
 

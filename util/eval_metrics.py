@@ -39,7 +39,8 @@ class MultiClippedFourierPSNR(torch.nn.Module):
     def __init__(self, n_thresholds=64, im_max=1.0, im_size=128) -> None:
         super(MultiClippedFourierPSNR, self).__init__()
         self.cf_psnr = ClippedFourierPSNR(im_max, im_size)
-        t = torch.linspace(2, im_size, n_thresholds)
+        end = (im_size * torch.sqrt(torch.tensor(2))) // 2
+        t = torch.linspace(2, end, n_thresholds)
         self.thresholds = torch.round(t).int()
 
     def thresholds(self):

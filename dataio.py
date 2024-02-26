@@ -7,8 +7,28 @@ from PIL import Image
 import torchvision.transforms as transforms
 import numpy as np
 import random
+import seaborn as sns
 
 from util.utils import make_coord
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def save_ablation_linechart(path, x, y_result, y_bilinear, y_nearest):
+    df = pd.DataFrame({
+        'Threshold': x,
+        'Ours': y_result,
+        'Bilinear': y_bilinear,
+        'Nearest': y_nearest
+    })
+
+    df_long = pd.melt(df, id_vars=['Threshold'], var_name='Category', value_name='CF PSNR')
+    sns.set_style("darkgrid")
+    sns.lineplot(data=df_long, x='Threshold', y='CF PSNR', hue='Category')
+
+    output_path = os.path.join(path, "cfpsnr_lineplot.png")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    plt.clf()
 
 def create_dir(path, folder):
     path = os.path.join(path, folder)

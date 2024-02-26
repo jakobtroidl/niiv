@@ -2,11 +2,14 @@ import torch
 import configargparse
 import json
 import os
+import time
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
 from util.eval_metrics import compute_all_metrics, write_metrics_string
+from util.utils import exclude_max_min
 from dataio import create_dir, save_images
+import numpy as np
 
 def train(opt):
 
@@ -20,6 +23,7 @@ def train(opt):
 
     with torch.no_grad():
         result_metrics_all = torch.empty(0, len(metric_names)).cuda()
+        times_all = []
 
         for file in files:
             data = os.path.join(opt.dataset, file)
@@ -45,7 +49,11 @@ def train(opt):
             gt_coords_linear = gt_coords.view(-1, gt_coords.shape[-1] * gt_coords.shape[-2] * gt_coords.shape[-3])
             gt_coords_linear = torch.permute(gt_coords_linear, (1, 0))
 
+            start = time.time()
             pred_values_linear = field(gt_coords_linear)
+            duration = time.time() - start
+
+            times_all.append(duration)
 
             pred_values = pred_values_linear.view(gt_values.shape).squeeze()
             pred_values = pred_values.unsqueeze(1)
@@ -58,6 +66,7 @@ def train(opt):
             output = "-------------------------------\n"
             output += "Sequence: {}\n".format(file)
             output += "Avg Result Metrics: {}\n".format(metric_string)
+            output += "Time: {} sec\n".format(duration)
             print(output)
 
             with open(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration), "results.txt"), "w") as f:
@@ -70,6 +79,7 @@ def train(opt):
     output = "-------------------------------\n"
     output += "Summary Results\n"
     output += "Avg Result Metrics: {}\n".format(result_metric_string)
+    output += "Reconstruction Time: {} sec\n".format(np.mean(exclude_max_min(times_all)))
 
     print(output)
     with open(os.path.join(log_dir, "avg_result.txt"), "w") as f:

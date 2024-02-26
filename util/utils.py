@@ -62,6 +62,10 @@ def make_coord(shape, ranges=None, flatten=True):
         ret = ret.view(-1, ret.shape[-1])
     return ret
 
+def exclude_max_min(list):
+    sorted_list = sorted(list)
+    return sorted_list[1:-1]
+
 
 
 

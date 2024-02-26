@@ -9,10 +9,10 @@ def write_metrics_string(metrics, names):
     return out
 
 
-def compute_all_metrics(pred, gt, im_max=1.0, low_pass_radius=25, im_size=(128, 128)):
+def compute_all_metrics(pred, gt, im_max=1.0, im_size=128):
     image_psnr = compute_metric(ImagePSNR(), pred, gt)
     image_ssim = compute_metric(ImageSSIM(), pred, gt)
-    clipped_fourier_psnr = compute_metric(ClippedFourierPSNR(im_max, low_pass_radius, im_size), pred, gt)
+    clipped_fourier_psnr = compute_metric(ClippedFourierPSNR(im_max, im_size), pred, gt)
 
     return torch.stack((image_psnr, image_ssim, clipped_fourier_psnr), dim=1)
 
@@ -35,17 +35,32 @@ class LowPassFilter(torch.nn.Module):
         low_pass[mask_area] = 1
         return low_pass.to("cuda")
 
+class MultiClippedFourierPSNR(torch.nn.Module):
+    def __init__(self, n_thresholds=64, im_max=1.0, im_size=128) -> None:
+        super(MultiClippedFourierPSNR, self).__init__()
+        self.cf_psnr = ClippedFourierPSNR(im_max, im_size)
+        t = torch.linspace(2, im_size, n_thresholds)
+        self.thresholds = torch.round(t).int()
+
+    def thresholds(self):
+        return self.thresholds.tolist()
+    
+    def forward(self, prediction, gt):
+        cf_psnr = torch.zeros((prediction.shape[0], self.thresholds.shape[0]), dtype=torch.float32).to("cuda")
+        for i, threshold in enumerate(self.thresholds):
+            cf_psnr[:, i] = self.cf_psnr(prediction, gt, threshold)
+        return cf_psnr
+
 class ClippedFourierPSNR(torch.nn.Module):
-    def __init__(self, im_max=1.0, low_pass_radius=25, im_size=(128, 128)):
+    def __init__(self, im_max=1.0, im_size=128):
         super(ClippedFourierPSNR, self).__init__()
         self.im_max = torch.tensor(im_max)
-        self.threshold = low_pass_radius
-        self.low_pass = LowPassFilter(im_size[0], im_size[1])
+        self.low_pass = LowPassFilter(im_size, im_size)
 
-    def forward(self, prediction, gt):
+    def forward(self, prediction, gt, threshold=25):
         n_pixels = prediction.shape[-1] * prediction.shape[-2]
-        pred_fourier = fftshift(fft2(prediction)) * self.low_pass(self.threshold)
-        gt_fourier = fftshift(fft2(gt)) * self.low_pass(self.threshold)
+        pred_fourier = fftshift(fft2(prediction)) * self.low_pass(threshold)
+        gt_fourier = fftshift(fft2(gt)) * self.low_pass(threshold)
         sq_error = torch.abs(pred_fourier - gt_fourier) ** 2
         sum_sq_error = torch.sum(sq_error, dim=[-3, -2, -1])
         cf_psnr = 20 * torch.log10(self.im_max * n_pixels) - 10 * torch.log10(sum_sq_error)

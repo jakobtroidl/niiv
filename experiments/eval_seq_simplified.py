@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 import math
 from torch.nn import functional as F
 from src.models import NIV
-from util.eval_metrics import compute_all_metrics, write_metrics_string
+from util.eval_metrics import compute_all_metrics, write_metrics_string, MultiClippedFourierPSNR
 from dataio import create_dir, save_images
 
 import time
@@ -63,14 +63,20 @@ test_seq_dir = os.path.join(dir, "test")
 results_dir = create_dir(root_path, 'results_iteration_{}'.format(opt.iteration))
 
 metric_names = ["PSNR", "SSIM", "CF_PSNR"]
+seq_names = os.listdir(test_seq_dir)
+mcf_psnr = MultiClippedFourierPSNR()
 
 result_metrics_all = torch.empty(0, len(metric_names)).cuda()
 bilinear_metrics_all = torch.empty(0, len(metric_names)).cuda()
 nearest_metrics_all = torch.empty(0, len(metric_names)).cuda()
+
+result_mcf_psnr_all = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+bilinear_mcf_psnr_all = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+nearest_mcf_psnr_all = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+
 times_list = []
 memory_list = []
 
-seq_names = os.listdir(test_seq_dir)
 for seq in seq_names:
 
     dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, name=seq)
@@ -80,6 +86,10 @@ for seq in seq_names:
     result_metrics = torch.empty(0, len(metric_names)).cuda()
     nearest_metrics = torch.empty(0, len(metric_names)).cuda()
     bilinear_metrics = torch.empty(0, len(metric_names)).cuda()
+
+    result_mcf_psnr = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+    bilinear_mcf_psnr = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+    nearest_mcf_psnr = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
     
     times = []
     memory = []
@@ -121,6 +131,10 @@ for seq in seq_names:
                 nearest_metrics = torch.cat((nearest_metrics, compute_all_metrics(nearest, gt_image)), dim=0)
                 bilinear_metrics = torch.cat((bilinear_metrics, compute_all_metrics(bilinear, gt_image)), dim=0)
 
+                result_mcf_psnr = torch.cat((result_mcf_psnr, mcf_psnr(pred_image, gt_image)), dim=0)
+                bilinear_mcf_psnr = torch.cat((bilinear_mcf_psnr, mcf_psnr(bilinear, gt_image)), dim=0)
+                nearest_mcf_psnr = torch.cat((nearest_mcf_psnr, mcf_psnr(nearest, gt_image)), dim=0)
+
                 save_images(result_dir, pred_image, file_names, metrics=result_metrics, metric_idx=0)
                 save_images(nearest_dir, nearest, file_names, metrics=nearest_metrics, metric_idx=0)
                 save_images(bilinear_dir, bilinear, file_names, metrics=bilinear_metrics, metric_idx=0)
@@ -136,6 +150,10 @@ for seq in seq_names:
     nearest_metric_string = write_metrics_string(nearest_metrics, metric_names)
     bilinear_metric_string = write_metrics_string(bilinear_metrics, metric_names)
 
+    mean_result_mcf_psnr = torch.round(result_mcf_psnr.mean(dim=0), decimals=2)
+    mean_bilinear_mcf_psnr = torch.round(bilinear_mcf_psnr.mean(dim=0), decimals=2)
+    mean_nearest_mcf_psnr = torch.round(nearest_mcf_psnr.mean(dim=0), decimals=2)
+
     output = "-------------------------------\n"
     output += "Sequence: {}\n".format(seq)
     output += "Avg Result Metrics: {}\n".format(result_metric_string)
@@ -145,6 +163,13 @@ for seq in seq_names:
     output += "Memory: {} MB\n".format(np.mean(memory))
 
     print(output)
+
+    output += "-------------------------------\n"
+    output += "Result MCF PSNR: {}\n".format(mean_result_mcf_psnr.detach().cpu().tolist())
+    output += "Bilinear MCF PSNR: {}\n".format(mean_bilinear_mcf_psnr.detach().cpu().tolist())
+    output += "Nearest MCF PSNR: {}\n".format(mean_nearest_mcf_psnr.detach().cpu().tolist())
+    output += "Thresholds: {}\n".format(mcf_psnr.thresholds.tolist())
+
     with open(os.path.join(seq_res_dir, "result.txt"), "w") as f:
         f.write(output)
 
@@ -153,6 +178,11 @@ for seq in seq_names:
     bilinear_metrics_all = torch.cat((bilinear_metrics_all, bilinear_metrics), dim=0)
     times_list.append(np.sum(times))
     memory_list.append(np.mean(memory))
+
+    result_mcf_psnr_all = torch.cat((result_mcf_psnr_all, mean_result_mcf_psnr.unsqueeze(0)), dim=0)
+    bilinear_mcf_psnr_all = torch.cat((bilinear_mcf_psnr_all, mean_bilinear_mcf_psnr.unsqueeze(0)), dim=0)
+    nearest_mcf_psnr_all = torch.cat((nearest_mcf_psnr_all, mean_nearest_mcf_psnr.unsqueeze(0)), dim=0)
+
 
 result_metric_string = write_metrics_string(result_metrics_all, metric_names)
 bilinear_metric_string = write_metrics_string(bilinear_metrics_all, metric_names)
@@ -165,6 +195,14 @@ output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
 output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
 output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
 output += "Memory: {} MB\n".format(np.mean(memory_list))
+
+print(output)
+
+output += "-------------------------------\n"
+output += "Result MCF PSNR: {}\n".format(result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
+output += "Bilinear MCF PSNR: {}\n".format(bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
+output += "Nearest MCF PSNR: {}\n".format(nearest_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
+output += "Thresholds: {}\n".format(mcf_psnr.thresholds.tolist())
 
 print(output)
 with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:

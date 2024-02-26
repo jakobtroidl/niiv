@@ -16,7 +16,7 @@ import math
 from torch.nn import functional as F
 from src.models import NIV
 from util.eval_metrics import compute_all_metrics, write_metrics_string, MultiClippedFourierPSNR
-from dataio import create_dir, save_images
+from dataio import create_dir, save_images, save_ablation_linechart
 
 import time
 
@@ -164,14 +164,21 @@ for seq in seq_names:
 
     print(output)
 
+    out_mean_result_mcf_psnr = mean_result_mcf_psnr.detach().cpu().tolist()
+    out_mean_bilinear_mcf_psnr = mean_bilinear_mcf_psnr.detach().cpu().tolist()
+    out_mean_nearest_mcf_psnr = mean_nearest_mcf_psnr.detach().cpu().tolist()
+    out_thresholds = mcf_psnr.thresholds.tolist()
+
     output += "-------------------------------\n"
-    output += "Result MCF PSNR: {}\n".format(mean_result_mcf_psnr.detach().cpu().tolist())
-    output += "Bilinear MCF PSNR: {}\n".format(mean_bilinear_mcf_psnr.detach().cpu().tolist())
-    output += "Nearest MCF PSNR: {}\n".format(mean_nearest_mcf_psnr.detach().cpu().tolist())
-    output += "Thresholds: {}\n".format(mcf_psnr.thresholds.tolist())
+    output += "Result MCF PSNR: {}\n".format(out_mean_result_mcf_psnr)
+    output += "Bilinear MCF PSNR: {}\n".format(out_mean_bilinear_mcf_psnr)
+    output += "Nearest MCF PSNR: {}\n".format(out_mean_nearest_mcf_psnr)
+    output += "Thresholds: {}\n".format(out_thresholds)
 
     with open(os.path.join(seq_res_dir, "result.txt"), "w") as f:
         f.write(output)
+
+    save_ablation_linechart(seq_res_dir, out_thresholds, out_mean_result_mcf_psnr, out_mean_bilinear_mcf_psnr, out_mean_nearest_mcf_psnr)
 
     result_metrics_all = torch.cat((result_metrics_all, result_metrics), dim=0)
     nearest_metrics_all = torch.cat((nearest_metrics_all, nearest_metrics), dim=0)
@@ -198,12 +205,18 @@ output += "Memory: {} MB\n".format(np.mean(memory_list))
 
 print(output)
 
-output += "-------------------------------\n"
-output += "Result MCF PSNR: {}\n".format(result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
-output += "Bilinear MCF PSNR: {}\n".format(bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
-output += "Nearest MCF PSNR: {}\n".format(nearest_mcf_psnr_all.mean(dim=0).detach().cpu().tolist())
-output += "Thresholds: {}\n".format(mcf_psnr.thresholds.tolist())
+average_result_mcf_psnr = result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+average_bilinear_mcf_psnr = bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+average_nearest_mcf_psnr = nearest_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+avg_thresholds = mcf_psnr.thresholds.tolist()
 
-print(output)
+save_ablation_linechart(results_dir, avg_thresholds, average_result_mcf_psnr, average_bilinear_mcf_psnr, average_nearest_mcf_psnr)
+
+output += "-------------------------------\n"
+output += "Result MCF PSNR: {}\n".format(average_result_mcf_psnr)
+output += "Bilinear MCF PSNR: {}\n".format(average_bilinear_mcf_psnr)
+output += "Nearest MCF PSNR: {}\n".format(average_nearest_mcf_psnr)
+output += "Thresholds: {}\n".format(avg_thresholds)
+
 with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:
     f.write(output)

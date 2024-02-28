@@ -6,51 +6,39 @@ from src.encoders import rdn
 from src.encoders import swinir
 from src.decoder import inr
 from src.decoder.field_siren import FieldSiren
-from src.decoder.pos_enc import PositionalEncoding
 
 class NIV(nn.Module):
-    def __init__(self, out_features=3, encoding_config=None, latent_grid=None, export_features=False, pos_enc=True, **kwargs):
+    def __init__(self, out_features=3, encoding_config=None, latent_grid=None, n_pos_enc_octaves=10, **kwargs):
         super().__init__()
 
         self.feat_unfold = False
-        self.local_ensemble = False
         
-        if pos_enc:
-            self.pos_enc = PositionalEncoding(num_octaves=10)
-        else:
-            self.pos_enc = None
+        # if pos_enc:
+        #     n_pos =  self.pos_enc.d_out(2) * 2
+        # else:
+        #     self.pos_enc = None
+        #     n_pos = 2 
 
-        self.export_features = export_features
+        # if self.feat_unfold:
+        #     feat_dim = 3**2 # expand features by local neighborhood
+        # else:
+        #     feat_dim = 1
 
         # hyper parameters
         n_features = encoding_config["encoder"]["n_features"]
         n_layers = encoding_config["network"]["n_hidden_layers"]
-        n_neurons = encoding_config["network"]["n_neurons"]
-
-
-        if self.pos_enc:
-            n_pos =  self.pos_enc.d_out(2) * 2
-        else:
-            n_pos = 2 
-
-        if self.feat_unfold:
-            feat_dim = 3**2 # expand features by local neighborhood
-        else:
-            feat_dim = 1
-
-        model_in = n_features * feat_dim + n_pos + 1
+        n_neurons = encoding_config["network"]["n_neurons"]   
 
         # module for latent grid processing
         self.latent_grid = latent_grid
-        self.sparse_grid = FeatureGrid(feat_unfold=self.feat_unfold, local_ensemble=self.local_ensemble, pos_encoding=self.pos_enc, upsample=False)
+        self.sparse_grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves, upsample=False)
+        model_in = self.sparse_grid.n_out(n_features) 
 
         # trainable parameters
         self.encoder = EDSR2D(args = encoding_config["encoder"])
         # self.encoder = rdn.make_rdn()
         # self.encoder = swinir.make_swinir()
         self.decoder = MLP(in_dim=model_in, out_dim=out_features, n_neurons=n_neurons, n_hidden=n_layers)
-        # self.decoder = inr.Gabor(in_features=model_in, hidden_features=mlp_n_neurons, hidden_layers=mlp_n_layers, out_features=out_features)
-        # self.decoder = FieldSiren(d_coordinate=model_in, d_out=out_features, n_layers=n_layers, n_neurons=n_neurons)
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)

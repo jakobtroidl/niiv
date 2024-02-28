@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from src.feature_grid import FeatureGrid
 from src.encoders.edsr_2d import EDSR2D
@@ -12,17 +13,6 @@ class NIV(nn.Module):
         super().__init__()
 
         self.feat_unfold = False
-        
-        # if pos_enc:
-        #     n_pos =  self.pos_enc.d_out(2) * 2
-        # else:
-        #     self.pos_enc = None
-        #     n_pos = 2 
-
-        # if self.feat_unfold:
-        #     feat_dim = 3**2 # expand features by local neighborhood
-        # else:
-        #     feat_dim = 1
 
         # hyper parameters
         n_features = encoding_config["encoder"]["n_features"]
@@ -31,8 +21,8 @@ class NIV(nn.Module):
 
         # module for latent grid processing
         self.latent_grid = latent_grid
-        self.sparse_grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves, upsample=False)
-        model_in = self.sparse_grid.n_out(n_features) 
+        self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves, upsample=False)
+        model_in = self.grid.n_out(n_features) 
 
         # trainable parameters
         self.encoder = EDSR2D(args = encoding_config["encoder"])
@@ -42,4 +32,7 @@ class NIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        return self.sparse_grid.compute_features(image, latent_grid, coords, self.decoder)
+        features = self.grid.compute_features(image, latent_grid, coords)
+        bs, q = coords.squeeze(1).squeeze(1).shape[:2]
+        prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
+        return torch.clamp(prediction, 0, 1)

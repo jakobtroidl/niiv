@@ -14,38 +14,18 @@ class FeatureGrid():
             return n_in * 9
         return n_in + self.pos_enc.d_out(2) + 1
     
-    def compute_features(self, image, latents, coords, decoder):
+    def compute_features(self, image, latents, coords):
 
         if self.feature_unfold:
             # concat each latent by it's local neighborhood
             latents = self.unfold_features(latents)
-
-        # if self.local_ensemble:
-        #     vx_lst = [-1, 1]
-        #     vy_lst = [-1, 1]
-        #     eps_shift = 1e-6
-        # else:
-        #     vx_lst, vy_lst, eps_shift = [0], [0], 0
-
-        # # field radius (global: [-1, 1])
-        # rx = 2 / latents.shape[-2] / 2
-        # ry = 2 / latents.shape[-1] / 2
 
         # interpolate feature coordinates
         feature_coords = make_coord(latents.shape[-2:], flatten=False).cuda()
         feature_coords = feature_coords.permute(2, 0, 1).unsqueeze(0)
         feature_coords = feature_coords.repeat(coords.shape[0], 1, 1, 1)
 
-        # predictions = []
-        # areas = []
-
         coords_ = coords.unsqueeze(1)
-        # for vx in vx_lst:
-        #     for vy in vy_lst:
-        #         coords_ = coords.clone()
-        #         coords_[..., 0] += vx * rx + eps_shift
-        #         coords_[..., 1] += vy * ry + eps_shift
-        #         coords_.clamp_(-1 + 1e-6, 1 - 1e-6)
 
         # interpolate features
         q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='bilinear', align_corners=False)
@@ -62,23 +42,8 @@ class FeatureGrid():
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        input = torch.cat((q_features, q_input, pe_coords), dim=-1)
-        bs, q = coords.squeeze(1).squeeze(1).shape[:2]
-
-        # compute prediction for ensemble
-        prediction = decoder(input.view(bs * q, -1)).view(bs, q, -1)
-        # predictions.append(prediction)
-
-        # tot_area = torch.stack(areas).sum(dim=0)
-        # if self.local_ensemble:
-        #     t = areas[0]; areas[0] = areas[3]; areas[3] = t
-        #     t = areas[1]; areas[1] = areas[2]; areas[2] = t
-        # out = 0
-        # for pred, area in zip(predictions, areas):
-        #     out = out + pred * (area / tot_area).unsqueeze(-1)
-
-        prediction = torch.clamp(prediction, 0, 1)
-        return prediction
+        decoder_input = torch.cat((q_features, q_input, pe_coords), dim=-1)
+        return decoder_input
     
     def unfold_features(self, latents):
         unfold_list = [-1, 0, 1]

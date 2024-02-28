@@ -48,7 +48,7 @@ class NIV(nn.Module):
         self.encoder = EDSR2D(args = encoding_config["encoder"])
         # self.encoder = rdn.make_rdn()
         # self.encoder = swinir.make_swinir()
-        self.decoder = MLP(in_dim=model_in, out_dim=out_features, n_neurons=n_neurons, n_hidden=n_layers, pos_enc=self.pos_enc)
+        self.decoder = MLP(in_dim=model_in, out_dim=out_features, n_neurons=n_neurons, n_hidden=n_layers)
         # self.decoder = inr.Gabor(in_features=model_in, hidden_features=mlp_n_neurons, hidden_layers=mlp_n_layers, out_features=out_features)
         # self.decoder = FieldSiren(d_coordinate=model_in, d_out=out_features, n_layers=n_layers, n_neurons=n_neurons)
 

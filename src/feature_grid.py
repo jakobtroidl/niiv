@@ -3,9 +3,7 @@ from util.utils import make_coord
 from src.decoder.pos_enc import PositionalEncoding
 
 class FeatureGrid():
-    def __init__(self, feat_unfold, n_pos_encoding, upsample=False):
-        self.latents = None
-        self.upsample = upsample
+    def __init__(self, feat_unfold, n_pos_encoding):
         self.feature_unfold = feat_unfold
         self.pos_enc = PositionalEncoding(num_octaves=n_pos_encoding)
     
@@ -13,6 +11,7 @@ class FeatureGrid():
         if self.feature_unfold:
             return n_in * 9
         return n_in + self.pos_enc.d_out(2) + 1
+        # return n_in + 2 + 1
     
     def compute_features(self, image, latents, coords):
 
@@ -28,21 +27,23 @@ class FeatureGrid():
         coords_ = coords.unsqueeze(1)
 
         # interpolate features
-        q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='bilinear', align_corners=False)
+        q_features = torch.nn.functional.grid_sample(latents, coords_.flip(-1), mode='bilinear', align_corners=None)
         q_features = q_features.squeeze(2).squeeze(2)
         q_features = q_features.permute(0, 2, 1)
 
-        q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='bilinear', align_corners=False)
+        q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='bilinear', align_corners=None)
         q_coords = q_coords.squeeze(2).squeeze(2)
         q_coords = q_coords.permute(0, 2, 1)
 
-        q_input = torch.nn.functional.grid_sample(image, coords_.flip(-1), mode='bilinear', align_corners=False)
+        q_input = torch.nn.functional.grid_sample(image, coords_.flip(-1), mode='bilinear', align_corners=None)
         q_input = q_input.squeeze(2).squeeze(2)
         q_input = q_input.permute(0, 2, 1)
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        decoder_input = torch.cat((q_features, q_input, pe_coords), dim=-1)
+        # pe_coords = q_coords
+
+        decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
         return decoder_input
     
     def unfold_features(self, latents):

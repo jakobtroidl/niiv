@@ -81,15 +81,15 @@ class EDSR2D(nn.Module):
     def __init__(self, args, conv=default_conv):
         super(EDSR2D, self).__init__()
         # self.args = args
-        self.no_upsampling = args["no_upsampling"]
+        # self.no_upsampling = args["no_upsampling"]
         n_resblocks = args["n_resblocks"]
         n_feats = args["n_features"]
         kernel_size = 3
-        scale = args["scale"]
+        # scale = args["scale"]
         act = nn.ReLU(True)
 
-        self.sub_mean = MeanShift(args["rgb_range"])
-        self.add_mean = MeanShift(args["rgb_range"], sign=1)
+        # self.sub_mean = MeanShift(args["rgb_range"])
+        # self.add_mean = MeanShift(args["rgb_range"], sign=1)
 
         # define head module
         m_head = [conv(args["n_colors"], n_feats, kernel_size)]
@@ -105,16 +105,16 @@ class EDSR2D(nn.Module):
         self.head = nn.Sequential(*m_head)
         self.body = nn.Sequential(*m_body)
 
-        if self.no_upsampling:
-            self.out_dim = n_feats
-        else:
-            self.out_dim = args["n_colors"]
-            # define tail module
-            m_tail = [
-                Upsampler(conv, scale, n_feats, act=False),
-                conv(n_feats, args["n_colors"], kernel_size)
-            ]
-            self.tail = nn.Sequential(*m_tail)
+        # if self.no_upsampling:
+        self.out_dim = n_feats
+        # else:
+        #     self.out_dim = args["n_colors"]
+        #     # define tail module
+        #     m_tail = [
+        #         Upsampler(conv, scale, n_feats, act=False),
+        #         conv(n_feats, args["n_colors"], kernel_size)
+        #     ]
+        #     self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
         #x = self.sub_mean(x)
@@ -123,11 +123,11 @@ class EDSR2D(nn.Module):
         res = self.body(x)
         res += x
 
-        if self.no_upsampling:
-            x = res
-        else:
-            x = self.tail(res)
-        #x = self.add_mean(x)
+        # if self.no_upsampling:
+        x = res
+        # else:
+        #     x = self.tail(res)
+        # #x = self.add_mean(x)
         return x
 
     def load_state_dict(self, state_dict, strict=True):

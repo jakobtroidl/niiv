@@ -1,5 +1,5 @@
 import torch
-from torch.fft import fft2, fftshift
+from torch.fft import fft2, fftshift, ifft2, ifftshift
 from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 def write_metrics_string(metrics, names):
@@ -32,7 +32,14 @@ class LowPassFilter(torch.nn.Module):
         x = torch.arange(0, self.cols).unsqueeze(0).expand(self.rows, self.cols)
         y = torch.arange(0, self.rows).unsqueeze(1).expand(self.rows, self.cols)
         mask_area = (x - ccol) ** 2 + (y - crow) ** 2 <= radius**2
+
+        delta = radius // 2
+        mid = self.cols // 2
+        start = max(mid - delta, 0)
+        end = min(mid + delta, self.cols)
+        # low_pass[:, start:end ] = 1
         low_pass[mask_area] = 1
+
         return low_pass.to("cuda")
 
 class MultiClippedFourierPSNR(torch.nn.Module):
@@ -40,6 +47,7 @@ class MultiClippedFourierPSNR(torch.nn.Module):
         super(MultiClippedFourierPSNR, self).__init__()
         self.cf_psnr = ClippedFourierPSNR(im_max, im_size)
         end = (im_size * torch.sqrt(torch.tensor(2))) // 2
+        # end = 128
         t = torch.linspace(2, end, n_thresholds)
         self.thresholds = torch.round(t).int()
 
@@ -51,6 +59,19 @@ class MultiClippedFourierPSNR(torch.nn.Module):
         for i, threshold in enumerate(self.thresholds):
             cf_psnr[:, i] = self.cf_psnr(prediction, gt, threshold)
         return cf_psnr
+
+class FourierDenoiser(torch.nn.Module):
+    def __init__(self, threshold=25):
+        super(FourierDenoiser, self).__init__()
+        self.filter_threshold = threshold
+    
+    def forward(self, x):
+        f_transform = fft2(x)
+        f_shifted = fftshift(f_transform)
+        low_pass = LowPassFilter(x.shape[-2], x.shape[-1])(self.filter_threshold)
+        f_filtered = f_shifted * low_pass
+        return torch.abs(ifft2(ifftshift(f_filtered)))
+
 
 class ClippedFourierPSNR(torch.nn.Module):
     def __init__(self, im_max=1.0, im_size=128):

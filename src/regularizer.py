@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torchmetrics.functional.image import image_gradients
 from util.transforms import crop_image_border
 import matplotlib.pyplot as plt
+from util.eval_metrics import FourierDenoiser
 
 
 class GradientRegularizer(nn.Module):
@@ -11,9 +12,11 @@ class GradientRegularizer(nn.Module):
         super(GradientRegularizer, self).__init__()
         self.sobel_x = torch.tensor([[-0.25, 0, 0.25], [-0.5, 0, 0.5], [-0.25, 0, 0.25]], dtype=torch.float32).view(1, 1, 3, 3).cuda()
         self.sobel_y = torch.tensor([[-0.25, -0.5, -0.25], [0, 0, 0], [0.25, 0.5, 0.25]], dtype=torch.float32).view(1, 1, 3, 3).cuda()
+        self.denoiser = FourierDenoiser(threshold=25)
 
 
     def forward(self, x, epoch, step, weight=0.01):
+        x = self.denoiser(x)
         x = x.unsqueeze(1)
         # dy, dx = image_gradients(x)
 

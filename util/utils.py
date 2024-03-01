@@ -56,6 +56,7 @@ def make_coord(shape, ranges=None, flatten=True):
             v0, v1 = ranges[i]
         r = (v1 - v0) / (2 * n)
         seq = v0 + r + (2 * r) * torch.arange(n).float()
+        # seq = v0 + (2 * r) * torch.arange(n).float()
         coord_seqs.append(seq)
     ret = torch.stack(torch.meshgrid(*coord_seqs), dim=-1)
     if flatten:

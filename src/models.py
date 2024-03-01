@@ -9,7 +9,7 @@ from src.decoder import inr
 from src.decoder.field_siren import FieldSiren
 
 class NIV(nn.Module):
-    def __init__(self, out_features=3, encoding_config=None, latent_grid=None, n_pos_enc_octaves=10, **kwargs):
+    def __init__(self, out_features=3, encoding_config=None, latent_grid=None, n_pos_enc_octaves=2, **kwargs):
         super().__init__()
 
         self.feat_unfold = False
@@ -21,7 +21,7 @@ class NIV(nn.Module):
 
         # module for latent grid processing
         self.latent_grid = latent_grid
-        self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves, upsample=False)
+        self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves)
         model_in = self.grid.n_out(n_features) 
 
         # trainable parameters

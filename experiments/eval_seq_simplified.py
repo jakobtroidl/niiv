@@ -138,85 +138,87 @@ for seq in seq_names:
                 save_images(result_dir, pred_image, file_names, metrics=result_metrics, metric_idx=0)
                 save_images(nearest_dir, nearest, file_names, metrics=nearest_metrics, metric_idx=0)
                 save_images(bilinear_dir, bilinear, file_names, metrics=bilinear_metrics, metric_idx=0)
+                save_images(gt_dir, gt_image, file_names)
             else:
                 save_images(result_dir, pred_image, file_names)
                 save_images(nearest_dir, nearest, file_names)
                 save_images(bilinear_dir, bilinear, file_names)
 
-            save_images(gt_dir, gt_image, file_names)
             save_images(input_dir, model_input, file_names)
 
-    result_metric_string = write_metrics_string(result_metrics, metric_names)
-    nearest_metric_string = write_metrics_string(nearest_metrics, metric_names)
-    bilinear_metric_string = write_metrics_string(bilinear_metrics, metric_names)
+    if dataset.has_isotropic_test_data():
+        result_metric_string = write_metrics_string(result_metrics, metric_names)
+        nearest_metric_string = write_metrics_string(nearest_metrics, metric_names)
+        bilinear_metric_string = write_metrics_string(bilinear_metrics, metric_names)
 
-    mean_result_mcf_psnr = torch.round(result_mcf_psnr.mean(dim=0), decimals=2)
-    mean_bilinear_mcf_psnr = torch.round(bilinear_mcf_psnr.mean(dim=0), decimals=2)
-    mean_nearest_mcf_psnr = torch.round(nearest_mcf_psnr.mean(dim=0), decimals=2)
+        mean_result_mcf_psnr = torch.round(result_mcf_psnr.mean(dim=0), decimals=2)
+        mean_bilinear_mcf_psnr = torch.round(bilinear_mcf_psnr.mean(dim=0), decimals=2)
+        mean_nearest_mcf_psnr = torch.round(nearest_mcf_psnr.mean(dim=0), decimals=2)
+
+        output = "-------------------------------\n"
+        output += "Sequence: {}\n".format(seq)
+        output += "Avg Result Metrics: {}\n".format(result_metric_string)
+        output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
+        output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
+        output += "Reconstruction Time: {} sec\n".format(np.sum(times))
+        output += "Memory: {} MB\n".format(np.mean(memory))
+
+        print(output)
+
+        out_mean_result_mcf_psnr = mean_result_mcf_psnr.detach().cpu().tolist()
+        out_mean_bilinear_mcf_psnr = mean_bilinear_mcf_psnr.detach().cpu().tolist()
+        out_mean_nearest_mcf_psnr = mean_nearest_mcf_psnr.detach().cpu().tolist()
+        out_thresholds = mcf_psnr.thresholds.tolist()
+
+        output += "-------------------------------\n"
+        output += "Result MCF PSNR: {}\n".format(out_mean_result_mcf_psnr)
+        output += "Bilinear MCF PSNR: {}\n".format(out_mean_bilinear_mcf_psnr)
+        output += "Nearest MCF PSNR: {}\n".format(out_mean_nearest_mcf_psnr)
+        output += "Thresholds: {}\n".format(out_thresholds)
+
+        with open(os.path.join(seq_res_dir, "result.txt"), "w") as f:
+            f.write(output)
+
+        save_ablation_linechart(seq_res_dir, out_thresholds, out_mean_result_mcf_psnr, out_mean_bilinear_mcf_psnr, out_mean_nearest_mcf_psnr)
+
+        result_metrics_all = torch.cat((result_metrics_all, result_metrics), dim=0)
+        nearest_metrics_all = torch.cat((nearest_metrics_all, nearest_metrics), dim=0)
+        bilinear_metrics_all = torch.cat((bilinear_metrics_all, bilinear_metrics), dim=0)
+        times_list.append(np.sum(times))
+        memory_list.append(np.mean(memory))
+
+        result_mcf_psnr_all = torch.cat((result_mcf_psnr_all, mean_result_mcf_psnr.unsqueeze(0)), dim=0)
+        bilinear_mcf_psnr_all = torch.cat((bilinear_mcf_psnr_all, mean_bilinear_mcf_psnr.unsqueeze(0)), dim=0)
+        nearest_mcf_psnr_all = torch.cat((nearest_mcf_psnr_all, mean_nearest_mcf_psnr.unsqueeze(0)), dim=0)
+
+
+if dataset.has_isotropic_test_data():
+    result_metric_string = write_metrics_string(result_metrics_all, metric_names)
+    bilinear_metric_string = write_metrics_string(bilinear_metrics_all, metric_names)
+    nearest_metric_string = write_metrics_string(nearest_metrics_all, metric_names)
 
     output = "-------------------------------\n"
-    output += "Sequence: {}\n".format(seq)
+    output += "Summary Results\n"
     output += "Avg Result Metrics: {}\n".format(result_metric_string)
     output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
     output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
-    output += "Reconstruction Time: {} sec\n".format(np.sum(times))
-    output += "Memory: {} MB\n".format(np.mean(memory))
+    output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
+    output += "Memory: {} MB\n".format(np.mean(memory_list))
 
     print(output)
 
-    out_mean_result_mcf_psnr = mean_result_mcf_psnr.detach().cpu().tolist()
-    out_mean_bilinear_mcf_psnr = mean_bilinear_mcf_psnr.detach().cpu().tolist()
-    out_mean_nearest_mcf_psnr = mean_nearest_mcf_psnr.detach().cpu().tolist()
-    out_thresholds = mcf_psnr.thresholds.tolist()
+    average_result_mcf_psnr = result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+    average_bilinear_mcf_psnr = bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+    average_nearest_mcf_psnr = nearest_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+    avg_thresholds = mcf_psnr.thresholds.tolist()
+
+    save_ablation_linechart(results_dir, avg_thresholds, average_result_mcf_psnr, average_bilinear_mcf_psnr, average_nearest_mcf_psnr)
 
     output += "-------------------------------\n"
-    output += "Result MCF PSNR: {}\n".format(out_mean_result_mcf_psnr)
-    output += "Bilinear MCF PSNR: {}\n".format(out_mean_bilinear_mcf_psnr)
-    output += "Nearest MCF PSNR: {}\n".format(out_mean_nearest_mcf_psnr)
-    output += "Thresholds: {}\n".format(out_thresholds)
+    output += "Result MCF PSNR: {}\n".format(average_result_mcf_psnr)
+    output += "Bilinear MCF PSNR: {}\n".format(average_bilinear_mcf_psnr)
+    output += "Nearest MCF PSNR: {}\n".format(average_nearest_mcf_psnr)
+    output += "Thresholds: {}\n".format(avg_thresholds)
 
-    with open(os.path.join(seq_res_dir, "result.txt"), "w") as f:
+    with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:
         f.write(output)
-
-    save_ablation_linechart(seq_res_dir, out_thresholds, out_mean_result_mcf_psnr, out_mean_bilinear_mcf_psnr, out_mean_nearest_mcf_psnr)
-
-    result_metrics_all = torch.cat((result_metrics_all, result_metrics), dim=0)
-    nearest_metrics_all = torch.cat((nearest_metrics_all, nearest_metrics), dim=0)
-    bilinear_metrics_all = torch.cat((bilinear_metrics_all, bilinear_metrics), dim=0)
-    times_list.append(np.sum(times))
-    memory_list.append(np.mean(memory))
-
-    result_mcf_psnr_all = torch.cat((result_mcf_psnr_all, mean_result_mcf_psnr.unsqueeze(0)), dim=0)
-    bilinear_mcf_psnr_all = torch.cat((bilinear_mcf_psnr_all, mean_bilinear_mcf_psnr.unsqueeze(0)), dim=0)
-    nearest_mcf_psnr_all = torch.cat((nearest_mcf_psnr_all, mean_nearest_mcf_psnr.unsqueeze(0)), dim=0)
-
-
-result_metric_string = write_metrics_string(result_metrics_all, metric_names)
-bilinear_metric_string = write_metrics_string(bilinear_metrics_all, metric_names)
-nearest_metric_string = write_metrics_string(nearest_metrics_all, metric_names)
-
-output = "-------------------------------\n"
-output += "Summary Results\n"
-output += "Avg Result Metrics: {}\n".format(result_metric_string)
-output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
-output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
-output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
-output += "Memory: {} MB\n".format(np.mean(memory_list))
-
-print(output)
-
-average_result_mcf_psnr = result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
-average_bilinear_mcf_psnr = bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
-average_nearest_mcf_psnr = nearest_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
-avg_thresholds = mcf_psnr.thresholds.tolist()
-
-save_ablation_linechart(results_dir, avg_thresholds, average_result_mcf_psnr, average_bilinear_mcf_psnr, average_nearest_mcf_psnr)
-
-output += "-------------------------------\n"
-output += "Result MCF PSNR: {}\n".format(average_result_mcf_psnr)
-output += "Bilinear MCF PSNR: {}\n".format(average_bilinear_mcf_psnr)
-output += "Nearest MCF PSNR: {}\n".format(average_nearest_mcf_psnr)
-output += "Thresholds: {}\n".format(avg_thresholds)
-
-with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:
-    f.write(output)

@@ -62,7 +62,7 @@ class ImageDatasetTest(Dataset):
         self.path = os.path.join(self.path, name)
         assert x_or_y == 0 or x_or_y == 1
         self.x_or_y = x_or_y
-        self.isotropic_test_data = info["isotropic_test_data"]
+        self.isotropic_test_data = bool(info["isotropic_test_data"])
         self.anisotropic_factor = info["anisotropic_factor"]
 
         self.avg_pool = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
@@ -70,6 +70,8 @@ class ImageDatasetTest(Dataset):
         self.data = self.data.to(torch.float32) / 255.0
         if self.isotropic_test_data:
             self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
+        else:
+            self.anisotropic = self.data[:, :, :self.data.shape[-1]//self.anisotropic_factor]
 
     def has_isotropic_test_data(self):
         return self.isotropic_test_data
@@ -140,7 +142,10 @@ class ImageDataset(Dataset):
         # anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()
 
         # discard every n-th slice in gt
-        anisotropic = gt[:, :, ::self.anisotropic_factor]
+        if self.isotropic_test_data:
+            anisotropic = gt[:, :, ::self.anisotropic_factor]
+        else:
+            anisotropic = gt[:, :, :gt.shape[-1]//self.anisotropic_factor]
 
         slice_idx = np.random.randint(0, anisotropic.shape[-3 + self.x_or_y])
         xy_idx = np.random.randint(0, anisotropic.shape[-1])

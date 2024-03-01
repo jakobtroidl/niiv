@@ -63,7 +63,7 @@ class ImageDatasetTest(Dataset):
         assert x_or_y == 0 or x_or_y == 1
         self.x_or_y = x_or_y
         self.isotropic_test_data = info["isotropic_test_data"]
-        self.anisotropic_factor = 8  # TODO make dynamic
+        self.anisotropic_factor = info["anisotropic_factor"]
 
         self.avg_pool = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
         self.data = torch.from_numpy(np.load(self.path)).cuda()
@@ -112,7 +112,7 @@ class ImageDataset(Dataset):
             self.path = os.path.join(self.path, self.folder)
 
         self.files = os.listdir(self.path)
-        self.anisotropic_factor = 8 # TODO make dynamic
+        self.anisotropic_factor = info["anisotropic_factor"]
 
         self.avg_pool2D = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
         self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
@@ -141,7 +141,6 @@ class ImageDataset(Dataset):
 
         # discard every n-th slice in gt
         anisotropic = gt[:, :, ::self.anisotropic_factor]
-
 
         slice_idx = np.random.randint(0, anisotropic.shape[-3 + self.x_or_y])
         xy_idx = np.random.randint(0, anisotropic.shape[-1])

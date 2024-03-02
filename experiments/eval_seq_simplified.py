@@ -80,7 +80,7 @@ memory_list = []
 for seq in seq_names:
 
     dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, name=seq)
-    dataloader = DataLoader(dataset, shuffle=False, batch_size=63, num_workers=0)
+    dataloader = DataLoader(dataset, shuffle=False, batch_size=10, num_workers=0) # prev batch size 63
 
     seq_res_dir = create_dir(results_dir, seq)
     result_metrics = torch.empty(0, len(metric_names)).cuda()
@@ -145,6 +145,11 @@ for seq in seq_names:
                 save_images(bilinear_dir, bilinear, file_names)
 
             save_images(input_dir, model_input, file_names)
+    
+    output = "-------------------------------\n"
+    output += "Sequence: {}\n".format(seq)
+    output += "Reconstruction Time: {} sec\n".format(np.sum(times))
+    output += "Memory: {} MB\n".format(np.mean(memory))
 
     if dataset.has_isotropic_test_data():
         result_metric_string = write_metrics_string(result_metrics, metric_names)
@@ -155,15 +160,9 @@ for seq in seq_names:
         mean_bilinear_mcf_psnr = torch.round(bilinear_mcf_psnr.mean(dim=0), decimals=2)
         mean_nearest_mcf_psnr = torch.round(nearest_mcf_psnr.mean(dim=0), decimals=2)
 
-        output = "-------------------------------\n"
-        output += "Sequence: {}\n".format(seq)
         output += "Avg Result Metrics: {}\n".format(result_metric_string)
         output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
         output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
-        output += "Reconstruction Time: {} sec\n".format(np.sum(times))
-        output += "Memory: {} MB\n".format(np.mean(memory))
-
-        print(output)
 
         out_mean_result_mcf_psnr = mean_result_mcf_psnr.detach().cpu().tolist()
         out_mean_bilinear_mcf_psnr = mean_bilinear_mcf_psnr.detach().cpu().tolist()
@@ -184,12 +183,20 @@ for seq in seq_names:
         result_metrics_all = torch.cat((result_metrics_all, result_metrics), dim=0)
         nearest_metrics_all = torch.cat((nearest_metrics_all, nearest_metrics), dim=0)
         bilinear_metrics_all = torch.cat((bilinear_metrics_all, bilinear_metrics), dim=0)
-        times_list.append(np.sum(times))
-        memory_list.append(np.mean(memory))
+
 
         result_mcf_psnr_all = torch.cat((result_mcf_psnr_all, mean_result_mcf_psnr.unsqueeze(0)), dim=0)
         bilinear_mcf_psnr_all = torch.cat((bilinear_mcf_psnr_all, mean_bilinear_mcf_psnr.unsqueeze(0)), dim=0)
         nearest_mcf_psnr_all = torch.cat((nearest_mcf_psnr_all, mean_nearest_mcf_psnr.unsqueeze(0)), dim=0)
+    
+    times_list.append(np.sum(times))
+    memory_list.append(np.mean(memory))
+    print(output)
+
+output = "-------------------------------\n"
+output += "Summary Results\n"
+output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
+output += "Memory: {} MB\n".format(np.mean(memory_list))
 
 
 if dataset.has_isotropic_test_data():
@@ -197,15 +204,9 @@ if dataset.has_isotropic_test_data():
     bilinear_metric_string = write_metrics_string(bilinear_metrics_all, metric_names)
     nearest_metric_string = write_metrics_string(nearest_metrics_all, metric_names)
 
-    output = "-------------------------------\n"
-    output += "Summary Results\n"
     output += "Avg Result Metrics: {}\n".format(result_metric_string)
     output += "Avg Bilinear Metrics: {}\n".format(bilinear_metric_string)
     output += "Avg Nearest Metrics: {}\n".format(nearest_metric_string)
-    output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
-    output += "Memory: {} MB\n".format(np.mean(memory_list))
-
-    print(output)
 
     average_result_mcf_psnr = result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
     average_bilinear_mcf_psnr = bilinear_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
@@ -222,3 +223,5 @@ if dataset.has_isotropic_test_data():
 
     with open(os.path.join(results_dir, "avg_result.txt"), "w") as f:
         f.write(output)
+
+print(output)

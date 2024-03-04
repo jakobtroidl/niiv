@@ -28,7 +28,7 @@ class GradientRegularizer(nn.Module):
         mag = torch.sqrt(G_x**2 + G_y**2 + 1e-9)
         # mag = mag - 0.05
         # mag = torch.clamp(mag, 0.0, 0.35) # disallow noise like and large gradients to dominate the loss
-        mag = crop_image_border(mag, 5)
+        # mag = crop_image_border(mag, 5)
 
 
         # if epoch % 5 == 0 and step == 0 :
@@ -43,7 +43,7 @@ class GradientRegularizer(nn.Module):
         #     plt.savefig('histograms/mag-histogram-{}.png'.format(epoch))
         #     plt.clf()
 
-        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 2)
+        x = torch.pow(1.0 - torch.mean(torch.abs(mag)), 1)
         x = torch.clamp(x, 0.0, 1.0)
         return x * weight
 

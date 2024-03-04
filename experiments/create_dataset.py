@@ -50,9 +50,13 @@ def main(args):
         if args.coord_list_path:
             x, y, z = data[i]
         else:
-            x = np.random.randint(15_000, 21_000) # assuming x,y is the high resolution axis
-            y = np.random.randint(15_000, 21_000)
-            z = np.random.randint(15_000, 21_000)
+            # x = np.random.randint(15_000, 21_000) # assuming x,y is the high resolution axis
+            # y = np.random.randint(15_000, 21_000)
+            # z = np.random.randint(15_000, 21_000)
+            x = 66034
+            # x = np.random.randint(10_000, 100_000)
+            y = np.random.randint(20_000, 40_000)
+            z = np.random.randint(1_500, 3_500)
             
         point = [x, y, z]
 
@@ -66,7 +70,7 @@ def main(args):
             np.save(os.path.join(output_path, "{}_{}_{}_denoised.npy".format(x, y, z)), vol_denoised)
         else:
             # save numpy array to disk   
-            vol = np.squeeze(vol) 
+            vol = np.squeeze(vol).astype(np.uint8)
             np.save(os.path.join(output_path, "{}_{}_{}.npy".format(x, y, z)), vol)
 
 if __name__ == "__main__":

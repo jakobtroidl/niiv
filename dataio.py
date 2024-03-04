@@ -163,6 +163,7 @@ class ImageDataset(Dataset):
         slice = slice.unsqueeze(0)
 
         xy_inputs = self.avg_pool2D(xy_gt)
+        # xy_inputs = xy_gt[:, :, ::self.anisotropic_factor]
 
         xy_coords = make_coord(xy.shape[-2:]).cuda()
         slice_coords = make_coord(xy.shape[-2:]).cuda()

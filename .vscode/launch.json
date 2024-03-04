@@ -11,25 +11,14 @@
             "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
-                "--name=hemibrain-volume-test-vols",
-                "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
+                "--name=fafb-128",
+                //"--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
+                //"--path=https://storage.googleapis.com/h01-release/data/20210601/4nm_raw/",
+                "--path=https://storage.googleapis.com/neuroglancer-fafb-data/fafb_v14/fafb_v14_clahe",
                 "--image_size=128",
                 "--n_vols=400",
                 "--train",
-                "--coord_list_path=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/coords.json"
-            ]
-        },
-        {
-            "name": "Create Test Sequence",
-            "type": "python",
-            "request": "launch",
-            "module": "experiments.create_test_sequence",
-            "justMyCode": true,
-            "args": [
-                "--name=hemibrain-volume-noisy-test-sequence",
-                "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
-                "--mip=0",
-                "--test_final",
+                //"--coord_list_path=/home/jakobtroidl/Desktop/neural-volumes/data/hubmap-lightsheet-spleen/coords.json"
             ]
         },
         {
@@ -39,7 +28,8 @@
             "module": "experiments.train_images",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-noisy-loss-ablation",
+                "--experiment_name=hemibrain-perc-loss-1000-epochs",
+                // "--dataset=data/fafb-130/info.json",
                 "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
@@ -51,10 +41,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-noisy-loss-ablation",
+                "--experiment_name=hemibrain-loss-ablation",
                 "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=71"
+                "--iteration=1"
             ]
         },
         {
@@ -64,8 +54,8 @@
             "module": "benchmarks.siren.train",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-noisy-siren",
-                "--dataset=data/hemibrain-volume-noisy-large/train/15024_19583_16759.npy",
+                "--experiment_name=fafb-130-volume-siren",
+                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/test/",
                 "--config=./config/config_siren.json"
             ]
         },
@@ -77,7 +67,7 @@
             "justMyCode": true,
             "args": [
                 "--experiment_name=hemibrain-volume-noisy-siren",
-                "--dataset=data/hemibrain-volume-noisy-large/train/15024_19583_16759.npy",
+                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/test/",
                 "--config=./config/config_siren.json",
                 "--iteration=2"
             ]

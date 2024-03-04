@@ -10,7 +10,7 @@ import webbrowser
 
 def add_example_layers(state):
     a = np.load(
-        "/home/jakobtroidl/Desktop/neural-volumes/logs/hemibrain-volume-noisy-loss-ablation/results_iteration_31/15548_15559_15781/reconstructed-mixed-loss-grad-regularizer.npy"
+        "/home/jakobtroidl/Desktop/neural-volumes/logs/fafb-130/results_iteration_8/66034_21822_1779.npy/result.npy"
     )
 
     print(a.shape)

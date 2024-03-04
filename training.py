@@ -3,15 +3,16 @@ import util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
-from util.loss_functions import SSIM_Loss
+# from util.loss_functions import SSIM_Loss
 from ignite.metrics import PSNR, SSIM
 
 import math
 import src.regularizer as regularizer
 import wandb
 from DISTS_pytorch import DISTS
-from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+# from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 import lpips
+from util.adists import ADISTS, prepare_image
 
 
 
@@ -42,18 +43,10 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     mse_loss = torch.nn.MSELoss()
     mae_loss = torch.nn.L1Loss()
     D = DISTS().cuda()
+    adists = ADISTS().cuda()
+
     # ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0, kernel_size=9, betas=(0.2856, 0.3001, 0.2363, 0.1333)).cuda()
-    # lpips_loss = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
-
-
-    # calculate DISTS between X, Y (a batch of RGB images, data range: 0~1)
-    # X: (N,C,H,W) 
-    # Y: (N,C,H,W) 
-    # dists_value = D(X, Y)
-    # # set 'require_grad=True, batch_average=True' to get a scalar value as loss.
-    # dists_loss = D(X, Y, require_grad=True, batch_average=True) 
-    # dists_loss.backward()
-
+    lpips_loss = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
 
     model.train()
 
@@ -81,22 +74,22 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # slice_loss = charbonnier_loss(slice_input, slice_output)
 
             # xy_loss_ssim = ssim_loss(xy_output.unsqueeze(1), xy_gt.unsqueeze(1))
-            xy_loss_mse = mse_loss(xy_output, xy_gt)
+            mse = mse_loss(xy_output, xy_gt)
             # weighted_xy_mse_loss = 55 * xy_loss_mse
 
             # # plot_histogram = epoch % 5 == 0 and step == 0 
             grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
 
-            # # epoch_weight = 0.4 * torch.sigmoid(torch.tensor(epoch) - 15) # weight the gradient regularizer less at the beginning of training
+            epoch_weight = torch.sigmoid(0.5 * torch.tensor(epoch) - 70).item() # weight the gradient regularizer less at the beginning of training
             # # grad_reg = epoch_weight * grad_reg
 
-            # xy_out_normed = (xy_output.unsqueeze(1) * 2 - 1)
-            # xy_gt_normed = (xy_gt.unsqueeze(1) * 2 - 1)
+            xy_out_normed =  (xy_output.unsqueeze(1) * 2 - 1)
+            xy_gt_normed = (xy_gt.unsqueeze(1) * 2 - 1)
 
-            # xy_out_rgb = xy_out_normed.expand(-1, 3, -1, -1)
-            # xy_gt_rgb = xy_gt_normed.expand(-1, 3, -1, -1)
+            xy_out_rgb = xy_out_normed.expand(-1, 3, -1, -1)
+            xy_gt_rgb = xy_gt_normed.expand(-1, 3, -1, -1)
 
-            # perc_loss = lpips_loss.forward(xy_out_rgb, xy_gt_rgb).mean()
+            perc_loss = lpips_loss.forward(xy_out_rgb, xy_gt_rgb).mean()
 
             # weighted_reg = 1 * grad_reg
             dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
@@ -108,7 +101,12 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # total_loss = xy_loss_ssim + xy_loss_mse + weighted_reg
             # total_loss = weighted_xy_mse_loss + weighted_reg
             # total_loss = dists_loss + 9 * mae
-            total_loss = 30 * mae + dists_loss + 1.5 * grad_reg
+            # total_loss = 20 * mae + dists_loss # + 3 * grad_reg
+
+            ad_loss = adists(xy_out_rgb, xy_gt_rgb, as_loss=True)
+
+            # total_loss = 30 * mae + dists_loss
+            total_loss = 30 * mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -124,9 +122,10 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             optim.step()
 
             wandb.log({ "Total Loss": total_loss_avg.item(), 
-                        "MAE Loss": mae.item(),
+                        "MSE Loss": mse.item(),
                         "DISTS Loss": dists_loss.item(),
                         "Grad Reg": grad_reg.item(),
+                        "Epoch Weight": epoch_weight,
                     #    "XY Loss MSE": xy_loss_mse.item(), 
                     #     "XY Loss SSIM": xy_loss_ssim.item(),
                     #    # "Overlap Loss": slice_loss.item(), 
@@ -137,8 +136,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             if not total_steps % steps_til_summary:
                 # tqdm.write("Epoch {}, Total Loss {}, XY Loss MSE {}, XY Loss SSIM {}, Grad Regularizer Term {}, PSNR {}, ".format(epoch, total_loss.item(), xy_loss_mse, xy_loss_ssim, grad_reg, psnr))
-                tqdm.write("Epoch {}, Total Loss {}, DISTS Loss {}, MAE Loss {}, Grad Reg {}, PSNR {}, ".format(epoch, total_loss.item(), dists_loss.item(), mae.item(), grad_reg.item(), psnr))
-
+                # tqdm.write("Epoch {}, Total Loss {}, DISTS Loss {}, MAE Loss {}, Grad Reg {}, PSNR {}, ".format(epoch, total_loss.item(), dists_loss.item(), mae.item(), grad_reg.item(), psnr))
+                tqdm.write("Epoch {}, Total Loss {}, MAE Loss {}, DISTS Loss {}, Epoch Weight {}".format(epoch, total_loss.item(), mae.item(), dists_loss.item(), epoch_weight))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

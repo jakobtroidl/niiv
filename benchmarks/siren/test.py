@@ -4,6 +4,7 @@ import json
 import os
 import time
 
+from torch.utils.data import DataLoader
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
 from niiv.util.eval_metrics import compute_all_metrics, write_metrics_string
@@ -33,6 +34,8 @@ def test(opt):
             data = os.path.join(opt.dataset, file)
             data_log_dir = os.path.join(log_dir, file)
             dataset = SIRENData(data, info)
+            loader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=False, num_workers=0)
+
 
             # load the field from checkpoint
             model_path = os.path.join(data_log_dir, "model_latest.pth")
@@ -48,30 +51,38 @@ def test(opt):
 
             res_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "results")
             gt_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "gt")
-            gt_coords = dataset.sample_gt_coords()
 
-            gt_coords_linear = gt_coords.view(-1, gt_coords.shape[-1] * gt_coords.shape[-2] * gt_coords.shape[-3])
-            gt_coords_linear = torch.permute(gt_coords_linear, (1, 0))
+            result = torch.empty(dataset.gt_grid_size())
+            t = 0
 
-            start = time.time()
-            pred_values_linear = field(gt_coords_linear)
-            duration = time.time() - start
+            for i, data in enumerate(loader):
+                # gt_coords = dataset.sample_gt_coords(i, n_splits=batches)
+                gt_coords = data
+                shape = (gt_coords.shape[0], gt_coords.shape[1], gt_coords.shape[-1] * gt_coords.shape[-2] * gt_coords.shape[-3])
+                gt_coords_linear = gt_coords.view(shape)
+                gt_coords_linear = torch.permute(gt_coords_linear, (0, 2, 1))
 
-            times_all.append(duration)
+                start = time.time()
+                pred_values_linear = field(gt_coords_linear)
+                t += time.time() - start
 
-            pred_values = pred_values_linear.view(dataset.gt_grid_size()).squeeze()
-            
+                pred_values = pred_values_linear.view(-1, data.shape[-3], data.shape[-2]).squeeze()
+                result[:, :, i * opt.batch_size: (i + 1) * opt.batch_size] = torch.permute(pred_values, (1, 2, 0))
+
+            times_all.append(t)
+                
 
             if opt.render_as == "xz":
-                pred_values = pred_values.permute(1, 0, 2)
+                pred_values_transformed = result.permute(1, 0, 2)
             elif opt.render_as == "yz":
-                pred_values = pred_values
+                pred_values_transformed = result
             elif opt.render_as == "xy":
-                pred_values = pred_values.permute(2, 0, 1)
+                pred_values_transformed = result.permute(2, 0, 1)
             else:
                 raise ValueError("render_as must be one of 'xy', 'xz', 'yz'")
-            
-            pred_values = pred_values.unsqueeze(1)
+                
+            pred_values_transformed = pred_values_transformed.unsqueeze(1)
+            result = result.unsqueeze(1)
 
             output = "-------------------------------\n"
             output += "Sequence: {}\n".format(file)
@@ -80,16 +91,16 @@ def test(opt):
                 gt_values = dataset.sample_gt_values()
                 gt_values = gt_values.squeeze().unsqueeze(1)
 
-                metrics = compute_all_metrics(pred_values, gt_values)
+                metrics = compute_all_metrics(result.cuda(), gt_values)
                 result_metrics_all = torch.cat((result_metrics_all, metrics), dim=0)
                 metric_string = write_metrics_string(metrics, metric_names)
                 output += "Avg Result Metrics: {}\n".format(metric_string)
                 save_images(gt_dir, gt_values)
-                save_images(res_dir, pred_values, metrics=metrics, metric_idx=0)
+                save_images(res_dir, pred_values_transformed, metrics=metrics, metric_idx=0)
             else:
-                save_images(res_dir, pred_values)
+                save_images(res_dir, pred_values_transformed)
 
-            output += "Time: {} sec\n".format(duration)
+            output += "Time: {} sec\n".format(t)
             print(output)
 
             with open(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration), "results.txt"), "w") as f:
@@ -121,7 +132,7 @@ if __name__ == "__main__":
     p.add_argument('--steps_til_summary', type=int, default=50,
                 help='Time interval in seconds until tensorboard summary is saved.')
     p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
-    p.add_argument('--batch_size', type=int, default=6, help="Batch size")
+    p.add_argument('--batch_size', type=int, default=40, help="Batch size")
     p.add_argument('--iteration', type=int, help="i-th iteration of model evaluation. Default is 0.", default=0)
     p.add_argument('--render_as', type=str, help="Render the volume as xy, xz, or yz. Default is xz.", default="xz")
     opt = p.parse_args()

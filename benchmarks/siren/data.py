@@ -1,9 +1,12 @@
 import torch
 import numpy as np
+from torch.utils.data import Dataset
 
 
-class SIRENData():
+
+class SIRENData(Dataset):
     def __init__(self, path, info):
+        super().__init__()
         """Load the volume in cfg.path into memory here."""
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.has_isotropic_test_data = info["isotropic_test_data"]
@@ -16,11 +19,30 @@ class SIRENData():
         self.gt = self.gt / 255 # normalize to [0, 1] 
 
         if self.has_isotropic_test_data:
-            self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropy_factor)])
-            self.input = self.avg_pool3D(self.gt).squeeze()
+            #self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropy_factor)])
+            #self.input = self.avg_pool3D(self.gt).squeeze()
+            self.input = self.gt[..., ::self.anisotropy_factor]
         else:
             im_size = self.gt.shape[-1]
             self.input = self.gt[..., :im_size//self.anisotropy_factor]
+
+    def __getitem__(self, idx):
+        """Return the idx-th sample from the volume."""
+        X, Y, Z = self.gt_grid_size()
+
+        # make coords for X, Y
+        x = torch.arange(X).float() / X
+        y = torch.arange(Y).float() / Y
+        z = torch.tensor(idx).float() / Z
+        x, y, z = torch.meshgrid(x, y, z)
+        coordinates = torch.stack((x, y, z), dim=0).to(self.device)
+        coordinates = 2 * coordinates - 1
+
+        return coordinates
+    
+    def __len__(self):
+        _, _, Z = self.gt_grid_size()
+        return Z
 
     def random_sample(self, batch_size):
         """Return a batch of random samples from the volume."""

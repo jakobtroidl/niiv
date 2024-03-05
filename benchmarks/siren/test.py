@@ -11,7 +11,7 @@ from niiv.util.utils import exclude_max_min
 from dataio import create_dir, save_images
 import numpy as np
 
-def train(opt):
+def test(opt):
 
     with open(opt.config, 'r') as f:
         config = json.load(f)
@@ -60,6 +60,17 @@ def train(opt):
             times_all.append(duration)
 
             pred_values = pred_values_linear.view(dataset.gt_grid_size()).squeeze()
+            
+
+            if opt.render_as == "xz":
+                pred_values = pred_values.permute(1, 0, 2)
+            elif opt.render_as == "yz":
+                pred_values = pred_values
+            elif opt.render_as == "xy":
+                pred_values = pred_values.permute(2, 0, 1)
+            else:
+                raise ValueError("render_as must be one of 'xy', 'xz', 'yz'")
+            
             pred_values = pred_values.unsqueeze(1)
 
             output = "-------------------------------\n"
@@ -67,7 +78,6 @@ def train(opt):
 
             if has_isotropic_test_data:
                 gt_values = dataset.sample_gt_values()
-
                 gt_values = gt_values.squeeze().unsqueeze(1)
 
                 metrics = compute_all_metrics(pred_values, gt_values)
@@ -113,6 +123,7 @@ if __name__ == "__main__":
     p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
     p.add_argument('--batch_size', type=int, default=6, help="Batch size")
     p.add_argument('--iteration', type=int, help="i-th iteration of model evaluation. Default is 0.", default=0)
+    p.add_argument('--render_as', type=str, help="Render the volume as xy, xz, or yz. Default is xz.", default="xz")
     opt = p.parse_args()
 
-    train(opt)
+    test(opt)

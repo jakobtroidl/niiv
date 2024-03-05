@@ -64,6 +64,8 @@ def make_coord(shape, ranges=None, flatten=True):
     return ret
 
 def exclude_max_min(list):
+    if len(list) < 3:
+        return list
     sorted_list = sorted(list)
     return sorted_list[1:-1]
 

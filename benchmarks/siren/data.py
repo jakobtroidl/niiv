@@ -3,10 +3,11 @@ import numpy as np
 
 
 class SIRENData():
-    def __init__(self, path):
+    def __init__(self, path, info):
         """Load the volume in cfg.path into memory here."""
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(8)])
+        self.has_isotropic_test_data = info["isotropic_test_data"]
+        self.anisotropy_factor = info["anisotropic_factor"]
 
         # load and normalize the volume
         self.gt = torch.from_numpy(np.load(path)).to(self.device)
@@ -14,9 +15,12 @@ class SIRENData():
         self.gt = self.gt.unsqueeze(0).unsqueeze(0).to(torch.float32) # prepare for broadcasting
         self.gt = self.gt / 255 # normalize to [0, 1] 
 
-        # 3D average pooling along z dimension
-        self.input = self.avg_pool3D(self.gt).squeeze()
-
+        if self.has_isotropic_test_data:
+            self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropy_factor)])
+            self.input = self.avg_pool3D(self.gt).squeeze()
+        else:
+            im_size = self.gt.shape[-1]
+            self.input = self.gt[..., :im_size//self.anisotropy_factor]
 
     def random_sample(self, batch_size):
         """Return a batch of random samples from the volume."""
@@ -35,7 +39,7 @@ class SIRENData():
 
         return coordinates, values
     
-    def sample_gt(self):
+    def sample_gt_coords(self):
         X, Y, Z = self.gt_grid_size()
 
         # make coords for X, Y
@@ -46,8 +50,24 @@ class SIRENData():
         coordinates = torch.stack((x, y, z), dim=0).to(self.device)
         coordinates = 2 * coordinates - 1
 
-        # sample the gt
-        return coordinates, self.gt
+        return coordinates
+
+    def sample_gt_values(self):
+        return self.gt
+    
+    # def sample_gt(self):
+    #     X, Y, Z = self.gt_grid_size()
+
+    #     # make coords for X, Y
+    #     x = torch.arange(X).float() / X
+    #     y = torch.arange(Y).float() / Y
+    #     z = torch.arange(Z).float() / Z
+    #     x, y, z = torch.meshgrid(x, y, z)
+    #     coordinates = torch.stack((x, y, z), dim=0).to(self.device)
+    #     coordinates = 2 * coordinates - 1
+
+    #     # sample the gt
+    #     return coordinates, self.gt
 
 
 

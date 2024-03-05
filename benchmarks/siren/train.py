@@ -8,9 +8,10 @@ import time
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
-from util.utils import exclude_max_min
+from niiv.util.utils import exclude_max_min
 from dataio import create_dir
 import numpy as np
+from niiv.util.eval_metrics import ImagePSNR
 from DISTS_pytorch import DISTS
 
 def train(opt):
@@ -20,12 +21,13 @@ def train(opt):
 
     log_dir = create_dir(opt.logging_root, opt.experiment_name)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    mse_loss = nn.MSELoss()
-
-    mae_loss = torch.nn.L1Loss()
-    D = DISTS().cuda()
+    loss_fn = nn.MSELoss()
+    psnr = ImagePSNR()
 
     times_all = []
+
+    info = os.path.join(os.path.dirname(os.path.dirname(opt.dataset)), "info.json")
+    info = json.loads(open(info).read())
 
     # list all files in the dataset directory
     files = os.listdir(opt.dataset)
@@ -33,7 +35,7 @@ def train(opt):
     for file in files:
         path = os.path.join(opt.dataset, file)
         data_dir = create_dir(log_dir, file)
-        dataset = SIRENData(path)
+        dataset = SIRENData(path, info)
         field = FieldSiren(config["siren"]).to(device)
         optimizer = torch.optim.Adam(field.parameters(), lr=opt.lr)
 
@@ -45,31 +47,29 @@ def train(opt):
             samples, values = dataset.random_sample(opt.batch_size)
             predicted = field(samples)
             
-            # loss = loss_fn(predicted, values)
-            dists_loss = D(predicted.unsqueeze(1), values.unsqueeze(1), require_grad=True, batch_average=True) 
-            mae = mae_loss(predicted, values)
-            loss = 30 * mae + dists_loss
+            loss = loss_fn(predicted, values)
 
             loss.backward()
             optimizer.step()
 
-            # if iteration % opt.steps_til_summary == 0:
-            #     # Log the loss to the progress bar.
-            #     description = f"Training (loss: {loss.item():.4f})\n"
-            #     pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
-            #     gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
-            #     description += f"PSNR: {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
-            #     progress.desc = description
+            if iteration % opt.steps_til_summary == 0:
+                # Log the loss to the progress bar.
+                description = f"Training (loss: {loss.item():.4f})\n"
+                pred_unsq = predicted.unsqueeze(-1).unsqueeze(-1)
+                gt_unsq = values.unsqueeze(-1).unsqueeze(-1)
+                description += f"PSNR: {torch.mean(psnr(pred_unsq, gt_unsq)).item():.4f}\n"
+                progress.desc = description
             
-            # if iteration % opt.epochs_til_ckpt == 0:
-            #     # Save the model checkpoint.
-            #     torch.save(
-            #         {
-            #             "model": field.state_dict(),
-            #             "optimizer": optimizer.state_dict(),
-            #         },
-            #         os.path.join(data_dir, "model_latest.pth"),
-            #     )
+            if iteration % opt.epochs_til_ckpt == 0:
+                print("MSE Loss: {}".format(loss.item()))
+                # Save the model checkpoint.
+                torch.save(
+                    {
+                        "model": field.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                    },
+                    os.path.join(data_dir, "model_latest.pth"),
+                )
         end = time.time()
         duration = end - start
         times_all.append(duration)

@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from src.decoder.wire import ComplexGaborLayer
+from niiv.decoder.wire import ComplexGaborLayer
 
 class Gabor(nn.Module):
     def __init__(self, in_features, hidden_features, 

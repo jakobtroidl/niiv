@@ -14,8 +14,8 @@ import numpy as np
 from torch.utils.data import DataLoader 
 import math
 from torch.nn import functional as F
-from src.models import NIV
-from util.eval_metrics import compute_all_metrics, write_metrics_string, MultiClippedFourierPSNR
+from niiv.models import NIIV
+from niiv.util.eval_metrics import compute_all_metrics, write_metrics_string, MultiClippedFourierPSNR
 from dataio import create_dir, save_images, save_ablation_linechart
 
 import time
@@ -44,7 +44,7 @@ with open(opt.config, 'r') as f:
     config = json.load(f)
 
 # Define the model.
-model = NIV(out_features=1, encoding_config=config["cvr"], export_features=False)
+model = NIIV(out_features=1, encoding_config=config["cvr"], export_features=False)
 model.cuda()
 
 config = config["cvr"]
@@ -55,7 +55,6 @@ root_path = os.path.join(opt.logging_root, opt.experiment_name)
 path = os.path.join(root_path, 'checkpoints', "model_latest.pth")
 checkpoint = torch.load(path)
 model.load_state_dict(checkpoint['model'])
-model.cuda()
 model.eval()
 
 dir = os.path.dirname(opt.dataset)

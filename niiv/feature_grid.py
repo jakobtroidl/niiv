@@ -1,6 +1,6 @@
 import torch
-from util.utils import make_coord
-from src.decoder.pos_enc import PositionalEncoding
+from niiv.util.utils import make_coord
+from niiv.decoder.pos_enc import PositionalEncoding
 
 class FeatureGrid():
     def __init__(self, feat_unfold, n_pos_encoding):

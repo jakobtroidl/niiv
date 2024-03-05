@@ -20,7 +20,7 @@ class SIRENData():
             self.input = self.avg_pool3D(self.gt).squeeze()
         else:
             im_size = self.gt.shape[-1]
-            self.input = self.gt[:, :, :im_size//self.anisotropy_factor]
+            self.input = self.gt[..., :im_size//self.anisotropy_factor]
 
     def random_sample(self, batch_size):
         """Return a batch of random samples from the volume."""

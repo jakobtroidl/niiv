@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics.functional.image import image_gradients
-from util.transforms import crop_image_border
+from niiv.util.transforms import crop_image_border
 import matplotlib.pyplot as plt
-from util.eval_metrics import FourierDenoiser
+from niiv.util.eval_metrics import FourierDenoiser
 
 
 class GradientRegularizer(nn.Module):

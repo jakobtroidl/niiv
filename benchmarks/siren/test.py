@@ -6,8 +6,8 @@ import time
 
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
-from util.eval_metrics import compute_all_metrics, write_metrics_string
-from util.utils import exclude_max_min
+from niiv.util.eval_metrics import compute_all_metrics, write_metrics_string
+from niiv.util.utils import exclude_max_min
 from dataio import create_dir, save_images
 import numpy as np
 
@@ -21,6 +21,10 @@ def train(opt):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     files = os.listdir(opt.dataset)
 
+    info = os.path.join(os.path.dirname(os.path.dirname(opt.dataset)), "info.json")
+    info = json.loads(open(info).read())
+    has_isotropic_test_data = info["isotropic_test_data"]
+
     with torch.no_grad():
         result_metrics_all = torch.empty(0, len(metric_names)).cuda()
         times_all = []
@@ -28,7 +32,7 @@ def train(opt):
         for file in files:
             data = os.path.join(opt.dataset, file)
             data_log_dir = os.path.join(log_dir, file)
-            dataset = SIRENData(data)
+            dataset = SIRENData(data, info)
 
             # load the field from checkpoint
             model_path = os.path.join(data_log_dir, "model_latest.pth")
@@ -44,7 +48,7 @@ def train(opt):
 
             res_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "results")
             gt_dir = create_dir(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration)), "gt")
-            gt_coords, gt_values = dataset.sample_gt()
+            gt_coords = dataset.sample_gt_coords()
 
             gt_coords_linear = gt_coords.view(-1, gt_coords.shape[-1] * gt_coords.shape[-2] * gt_coords.shape[-3])
             gt_coords_linear = torch.permute(gt_coords_linear, (1, 0))
@@ -55,30 +59,37 @@ def train(opt):
 
             times_all.append(duration)
 
-            pred_values = pred_values_linear.view(gt_values.shape).squeeze()
+            pred_values = pred_values_linear.view(dataset.gt_grid_size()).squeeze()
             pred_values = pred_values.unsqueeze(1)
-            gt_values = gt_values.squeeze().unsqueeze(1)
-
-            metrics = compute_all_metrics(pred_values, gt_values)
-            result_metrics_all = torch.cat((result_metrics_all, metrics), dim=0)
-            metric_string = write_metrics_string(metrics, metric_names)
 
             output = "-------------------------------\n"
             output += "Sequence: {}\n".format(file)
-            output += "Avg Result Metrics: {}\n".format(metric_string)
+
+            if has_isotropic_test_data:
+                gt_values = dataset.sample_gt_values()
+
+                gt_values = gt_values.squeeze().unsqueeze(1)
+
+                metrics = compute_all_metrics(pred_values, gt_values)
+                result_metrics_all = torch.cat((result_metrics_all, metrics), dim=0)
+                metric_string = write_metrics_string(metrics, metric_names)
+                output += "Avg Result Metrics: {}\n".format(metric_string)
+                save_images(gt_dir, gt_values)
+                save_images(res_dir, pred_values, metrics=metrics, metric_idx=0)
+            else:
+                save_images(res_dir, pred_values)
+
             output += "Time: {} sec\n".format(duration)
             print(output)
 
             with open(os.path.join(data_log_dir, "iteration_{}".format(opt.iteration), "results.txt"), "w") as f:
                 f.write(output)
-            
-            save_images(res_dir, pred_values, metrics=metrics, metric_idx=0)
-            save_images(gt_dir, gt_values)
     
-    result_metric_string = write_metrics_string(result_metrics_all, metric_names)
     output = "-------------------------------\n"
     output += "Summary Results\n"
-    output += "Avg Result Metrics: {}\n".format(result_metric_string)
+    if has_isotropic_test_data:
+        result_metric_string = write_metrics_string(result_metrics_all, metric_names)
+        output += "Avg Result Metrics: {}\n".format(result_metric_string)
     output += "Reconstruction Time: {} sec\n".format(np.mean(exclude_max_min(times_all)))
 
     print(output)

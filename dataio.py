@@ -69,7 +69,8 @@ class ImageDatasetTest(Dataset):
         self.data = torch.from_numpy(np.load(self.path)).cuda()
         self.data = self.data.to(torch.float32) / 255.0
         if self.isotropic_test_data:
-            self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
+            # self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
+            self.anisotropic = self.data[:, :, ::self.anisotropic_factor]
         else:
             self.anisotropic = self.data[:, :, :self.data.shape[-1]//self.anisotropic_factor]
 

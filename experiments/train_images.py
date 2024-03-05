@@ -3,15 +3,16 @@ import sys
 import os
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 
-from src.models import NIV
+from niiv.models import NIIV
+import niiv.util.utils as utils
+import niiv.util.loss_functions as loss_functions
 
-import dataio, util.utils as utils, util.loss_functions as loss_functions
+import dataio
 import training
 
 from torch.utils.data import DataLoader
 import configargparse
 from functools import partial
-import shutil
 import json
 
 command_line = ""
@@ -45,7 +46,7 @@ data_path = opt.dataset
 print("Data path is {}".format(data_path))
 
 # Define the model.
-model = NIV(type='cvr', out_features=1, encoding_config=config["cvr"])
+model = NIIV(out_features=1, encoding_config=config["cvr"])
 model.cuda()
 
 image_dataset = dataio.ImageDataset(path_to_info=opt.dataset)

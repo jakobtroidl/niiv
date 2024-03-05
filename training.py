@@ -1,5 +1,5 @@
 import torch
-import util.utils as utils
+import niiv.util.utils as utils
 from tqdm.autonotebook import tqdm
 import numpy as np
 import os
@@ -7,12 +7,12 @@ import os
 from ignite.metrics import PSNR, SSIM
 
 import math
-import src.regularizer as regularizer
+import niiv.regularizer as regularizer
 import wandb
 from DISTS_pytorch import DISTS
 # from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 import lpips
-from util.adists import ADISTS, prepare_image
+# from util.adists import ADISTS, prepare_image
 
 
 
@@ -43,7 +43,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     mse_loss = torch.nn.MSELoss()
     mae_loss = torch.nn.L1Loss()
     D = DISTS().cuda()
-    adists = ADISTS().cuda()
+    # adists = ADISTS().cuda()
 
     # ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0, kernel_size=9, betas=(0.2856, 0.3001, 0.2363, 0.1333)).cuda()
     lpips_loss = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
@@ -103,7 +103,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # total_loss = dists_loss + 9 * mae
             # total_loss = 20 * mae + dists_loss # + 3 * grad_reg
 
-            ad_loss = adists(xy_out_rgb, xy_gt_rgb, as_loss=True)
+            # ad_loss = adists(xy_out_rgb, xy_gt_rgb, as_loss=True)
 
             # total_loss = 30 * mae + dists_loss
             total_loss = 30 * mae

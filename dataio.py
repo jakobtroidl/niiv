@@ -9,7 +9,7 @@ import numpy as np
 import random
 import seaborn as sns
 
-from util.utils import make_coord
+from niiv.util.utils import make_coord
 import pandas as pd
 import matplotlib.pyplot as plt
 

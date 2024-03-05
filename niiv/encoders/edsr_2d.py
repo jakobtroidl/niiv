@@ -78,26 +78,28 @@ class Upsampler(nn.Sequential):
 
 
 class EDSR2D(nn.Module):
-    def __init__(self, args, conv=default_conv):
+    def __init__(self, args=None, conv=default_conv):
         super(EDSR2D, self).__init__()
-        # self.args = args
-        # self.no_upsampling = args["no_upsampling"]
-        n_resblocks = args["n_resblocks"]
-        n_feats = args["n_features"]
+        if args is None:
+            n_resblocks = 16
+            n_feats = 64
+            res_scale = 1
+            n_colors = 1
+        else:
+            n_resblocks = args["n_resblocks"]
+            n_feats = args["n_features"]
+            n_colors = args["n_colors"]
+            res_scale = args["res_scale"]
         kernel_size = 3
-        # scale = args["scale"]
         act = nn.ReLU(True)
 
-        # self.sub_mean = MeanShift(args["rgb_range"])
-        # self.add_mean = MeanShift(args["rgb_range"], sign=1)
-
         # define head module
-        m_head = [conv(args["n_colors"], n_feats, kernel_size)]
+        m_head = [conv(n_colors, n_feats, kernel_size)]
 
         # define body module
         m_body = [
             ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=args["res_scale"]
+                conv, n_feats, kernel_size, act=act, res_scale=res_scale
             ) for _ in range(n_resblocks)
         ]
         m_body.append(conv(n_feats, n_feats, kernel_size))
@@ -105,29 +107,13 @@ class EDSR2D(nn.Module):
         self.head = nn.Sequential(*m_head)
         self.body = nn.Sequential(*m_body)
 
-        # if self.no_upsampling:
         self.out_dim = n_feats
-        # else:
-        #     self.out_dim = args["n_colors"]
-        #     # define tail module
-        #     m_tail = [
-        #         Upsampler(conv, scale, n_feats, act=False),
-        #         conv(n_feats, args["n_colors"], kernel_size)
-        #     ]
-        #     self.tail = nn.Sequential(*m_tail)
 
     def forward(self, x):
-        #x = self.sub_mean(x)
         x = self.head(x)
-
         res = self.body(x)
         res += x
-
-        # if self.no_upsampling:
         x = res
-        # else:
-        #     x = self.tail(res)
-        # #x = self.add_mean(x)
         return x
 
     def load_state_dict(self, state_dict, strict=True):

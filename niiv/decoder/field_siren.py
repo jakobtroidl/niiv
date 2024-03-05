@@ -1,5 +1,5 @@
 from torch import nn
-from src.decoder.sine_layer import SineLayer
+from niiv.decoder.sine_layer import SineLayer
 
 class FieldSiren(nn.Module):
     network: nn.Sequential

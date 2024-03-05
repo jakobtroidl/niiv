@@ -9,3 +9,7 @@ __pycache__/**
 playground/**
 histograms/**
 *.png
+dist/**
+niiv.egg-info/**
+build/**
+

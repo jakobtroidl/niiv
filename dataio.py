@@ -13,7 +13,7 @@ from niiv.util.utils import make_coord
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def save_ablation_linechart(path, x, y_result, y_bilinear, y_nearest):
+def save_ablation_linechart(path, x, y_result, y_bilinear=None, y_nearest=None):
     df = pd.DataFrame({
         'Threshold': x,
         'Ours': y_result,

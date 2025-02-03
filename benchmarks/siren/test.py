@@ -7,10 +7,11 @@ import time
 from torch.utils.data import DataLoader
 from benchmarks.siren.data import SIRENData
 from benchmarks.siren.field import FieldSiren
-from niiv.util.eval_metrics import compute_all_metrics, write_metrics_string
+from niiv.util.eval_metrics import compute_all_metrics, write_metrics_string, MultiClippedFourierPSNR
 from niiv.util.utils import exclude_max_min
-from dataio import create_dir, save_images
+from dataio import create_dir, save_images, save_ablation_linechart
 import numpy as np
+
 
 def test(opt):
 
@@ -26,6 +27,11 @@ def test(opt):
     info = json.loads(open(info).read())
     has_isotropic_test_data = info["isotropic_test_data"]
 
+    mcf_psnr = MultiClippedFourierPSNR()
+    result_mcf_psnr_all = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
+
+
+
     with torch.no_grad():
         result_metrics_all = torch.empty(0, len(metric_names)).cuda()
         times_all = []
@@ -33,6 +39,7 @@ def test(opt):
         for file in files:
             data = os.path.join(opt.dataset, file)
             data_log_dir = os.path.join(log_dir, file)
+
             dataset = SIRENData(data, info)
             loader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=False, num_workers=0)
 
@@ -90,11 +97,19 @@ def test(opt):
             if has_isotropic_test_data:
                 gt_values = dataset.sample_gt_values()
                 gt_values = gt_values.squeeze().unsqueeze(1)
+                result = result.cuda()
 
-                metrics = compute_all_metrics(result.cuda(), gt_values)
+                metrics = compute_all_metrics(result, gt_values)
                 result_metrics_all = torch.cat((result_metrics_all, metrics), dim=0)
                 metric_string = write_metrics_string(metrics, metric_names)
                 output += "Avg Result Metrics: {}\n".format(metric_string)
+
+                result_mcf_psnr = mcf_psnr(result, gt_values)
+                output += "Result MCF PSNR: {}\n".format(result_mcf_psnr.detach().cpu().numpy())
+                output += "Thresholds: {}\n".format(mcf_psnr.thresholds.tolist())
+                result_mcf_psnr_all = torch.cat((result_mcf_psnr_all, result_mcf_psnr), dim=0)
+
+
                 save_images(gt_dir, gt_values)
                 save_images(res_dir, pred_values_transformed, metrics=metrics, metric_idx=0)
             else:
@@ -111,6 +126,15 @@ def test(opt):
     if has_isotropic_test_data:
         result_metric_string = write_metrics_string(result_metrics_all, metric_names)
         output += "Avg Result Metrics: {}\n".format(result_metric_string)
+
+        average_result_mcf_psnr = result_mcf_psnr_all.mean(dim=0).detach().cpu().tolist()
+        avg_thresholds = mcf_psnr.thresholds.tolist()
+
+        output += "Avg Result MCF PSNR: {}\n".format(average_result_mcf_psnr)
+        output += "Thresholds: {}\n".format(avg_thresholds)
+        save_ablation_linechart(log_dir, avg_thresholds, average_result_mcf_psnr)
+
+
     output += "Reconstruction Time: {} sec\n".format(np.mean(exclude_max_min(times_all)))
 
     print(output)

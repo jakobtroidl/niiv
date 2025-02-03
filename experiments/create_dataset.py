@@ -5,7 +5,8 @@ import os
 from tqdm import tqdm
 from skimage.restoration import denoise_tv_chambolle
 import json
-
+import torch.nn.functional as F
+import torch
 
 def main(args):
 
@@ -53,10 +54,10 @@ def main(args):
             # x = np.random.randint(15_000, 21_000) # assuming x,y is the high resolution axis
             # y = np.random.randint(15_000, 21_000)
             # z = np.random.randint(15_000, 21_000)
-            x = 66034
+            x = 3859
             # x = np.random.randint(10_000, 100_000)
-            y = np.random.randint(20_000, 40_000)
-            z = np.random.randint(1_500, 3_500)
+            y = np.random.randint(3_000, 7_000)
+            z = np.random.randint(400, 1_200)
             
         point = [x, y, z]
 
@@ -70,7 +71,18 @@ def main(args):
             np.save(os.path.join(output_path, "{}_{}_{}_denoised.npy".format(x, y, z)), vol_denoised)
         else:
             # save numpy array to disk   
-            vol = np.squeeze(vol).astype(np.uint8)
+            vol = np.squeeze(vol)
+
+            # interpolate F to shape of [128, 128, 128]
+            vol = vol.astype(np.float32)
+            vol = vol / 255.0
+            vol = torch.from_numpy(vol).unsqueeze(0).unsqueeze(0)
+            vol = F.interpolate(vol, size=(args.image_size, args.image_size, args.image_size), mode='trilinear')
+
+            vol = vol.squeeze().detach().cpu().numpy()
+            vol = vol * 255.0
+            vol = vol.astype(np.uint8)
+            
             np.save(os.path.join(output_path, "{}_{}_{}.npy".format(x, y, z)), vol)
 
 if __name__ == "__main__":

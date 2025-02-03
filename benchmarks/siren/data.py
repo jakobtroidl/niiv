@@ -19,9 +19,9 @@ class SIRENData(Dataset):
         self.gt = self.gt / 255 # normalize to [0, 1] 
 
         if self.has_isotropic_test_data:
-            #self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropy_factor)])
-            #self.input = self.avg_pool3D(self.gt).squeeze()
-            self.input = self.gt[..., ::self.anisotropy_factor]
+            self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropy_factor)])
+            self.input = self.avg_pool3D(self.gt).squeeze()
+            # self.input = self.gt[..., ::self.anisotropy_factor]
         else:
             im_size = self.gt.shape[-1]
             self.input = self.gt[..., :im_size//self.anisotropy_factor]

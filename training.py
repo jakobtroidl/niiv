@@ -105,8 +105,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             # ad_loss = adists(xy_out_rgb, xy_gt_rgb, as_loss=True)
 
-            # total_loss = 30 * mae + dists_loss
-            total_loss = 30 * mae
+            total_loss = 30 * mae + dists_loss
+            # total_loss = mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))

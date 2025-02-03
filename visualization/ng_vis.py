@@ -10,7 +10,7 @@ import webbrowser
 
 def add_example_layers(state):
     a = np.load(
-        "/home/jakobtroidl/Desktop/neural-volumes/logs/fafb-130/results_iteration_8/66034_21822_1779.npy/result.npy"
+        "/home/jakobtroidl/Desktop/neural-volumes/logs/hemibrain-final-fixed/results_iteration_1/15750_18505_17484.npy/bilinear.npy"
     )
 
     print(a.shape)

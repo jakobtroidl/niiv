@@ -69,8 +69,7 @@ class ImageDatasetTest(Dataset):
         self.data = torch.from_numpy(np.load(self.path)).cuda()
         self.data = self.data.to(torch.float32) / 255.0
         if self.isotropic_test_data:
-            # self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
-            self.anisotropic = self.data[:, :, ::self.anisotropic_factor]
+            self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
         else:
             self.anisotropic = self.data[:, :, :self.data.shape[-1]//self.anisotropic_factor]
 
@@ -140,11 +139,8 @@ class ImageDataset(Dataset):
         transform = transforms.ToTensor() # Transform to tensor
         gt = transform(image).cuda() # Transform to tensor, already in [0, 1]
 
-        # anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()
-
-        # discard every n-th slice in gt
         if self.isotropic_test_data:
-            anisotropic = gt[:, :, ::self.anisotropic_factor]
+            anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()
         else:
             anisotropic = gt[:, :, :gt.shape[-1]//self.anisotropic_factor]
 
@@ -164,7 +160,6 @@ class ImageDataset(Dataset):
         slice = slice.unsqueeze(0)
 
         xy_inputs = self.avg_pool2D(xy_gt)
-        # xy_inputs = xy_gt[:, :, ::self.anisotropic_factor]
 
         xy_coords = make_coord(xy.shape[-2:]).cuda()
         slice_coords = make_coord(xy.shape[-2:]).cuda()

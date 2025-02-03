@@ -11,10 +11,10 @@
             "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
-                "--name=fafb-128",
+                "--name=liconn-400",
                 //"--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
-                //"--path=https://storage.googleapis.com/h01-release/data/20210601/4nm_raw/",
-                "--path=https://storage.googleapis.com/neuroglancer-fafb-data/fafb_v14/fafb_v14_clahe",
+                //"--path=https://storage.googleapis.com/neuroglancer-fafb-data/fafb_v14/fafb_v14_clahe",
+                "--path=https://storage.googleapis.com/liconn-public/ExPID82_1/image_230130b",
                 "--image_size=128",
                 "--n_vols=400",
                 "--train",
@@ -22,54 +22,132 @@
             ]
         },
         {
-            "name": "Train Images",
+            "name": "Train Images (Hemibrain)",
             "type": "python",
             "request": "launch",
             "module": "experiments.train_images",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-perc-loss-1000-epochs",
-                // "--dataset=data/fafb-130/info.json",
+                "--experiment_name=hemibrain-mae-only",
                 "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
         },
         {
-            "name": "Eval Sequences",
+            "name": "Train Images (FAFB)",
+            "type": "python",
+            "request": "launch",
+            "module": "experiments.train_images",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=fafb-130-v2",
+                "--dataset=data/fafb-130/info.json",
+                // "--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--config=./config/config_cvr_s.json"
+            ]
+        },
+        {
+            "name": "Train Images (LICONN)",
+            "type": "python",
+            "request": "launch",
+            "module": "experiments.train_images",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=liconn-v2",
+                "--dataset=data/liconn-400/info.json",
+                // "--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--config=./config/config_cvr_s.json"
+            ]
+        },
+        {
+            "name": "Eval Sequences (Hemibrain)",
             "type": "python",
             "request": "launch",
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-loss-ablation",
+                "--experiment_name=hemibrain-final-fixed",
                 "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
                 "--iteration=1"
             ]
         },
         {
-            "name": "Train SIREN",
+            "name": "Eval Sequences (FAFB)",
+            "type": "python",
+            "request": "launch",
+            "module": "experiments.eval_seq_simplified",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=fafb-130-v2",
+                //"--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--dataset=data/fafb-130/info.json",
+                "--config=./config/config_cvr_s.json",
+                "--iteration=3"
+            ]
+        },
+        {
+            "name": "Eval Sequences (LICONN)",
+            "type": "python",
+            "request": "launch",
+            "module": "experiments.eval_seq_simplified",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=liconn-v2",
+                //"--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--dataset=data/liconn-400/info.json",
+                "--config=./config/config_cvr_s.json",
+                "--iteration=7"
+            ]
+        },
+        {
+            "name": "Train SIREN (FaFB)",
             "type": "python",
             "request": "launch",
             "module": "benchmarks.siren.train",
             "justMyCode": true,
             "args": [
                 "--experiment_name=fafb-130-volume-siren",
-                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/test/",
+                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/fafb-130/test-tiny/",
                 "--config=./config/config_siren.json"
             ]
         },
         {
-            "name": "Test SIREN",
+            "name": "Train SIREN (Hemibrain)",
+            "type": "python",
+            "request": "launch",
+            "module": "benchmarks.siren.train",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=hemibrain-siren-v3",
+                "--dataset=data/hemibrain-volume-noisy-large/test/",
+                "--config=./config/config_siren.json"
+            ]
+        },
+        {
+            "name": "Test SIREN (FAFB)",
             "type": "python",
             "request": "launch",
             "module": "benchmarks.siren.test",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-volume-noisy-siren",
-                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/hemibrain-volume-noisy-large/test/",
+                "--experiment_name=fafb-130-volume-siren",
+                "--dataset=/home/jakobtroidl/Desktop/neural-volumes/data/fafb-130/test-tiny/",
                 "--config=./config/config_siren.json",
-                "--iteration=2"
+                "--iteration=1"
+            ]
+        },
+        {
+            "name": "Test SIREN (Hemibrain)",
+            "type": "python",
+            "request": "launch",
+            "module": "benchmarks.siren.test",
+            "justMyCode": true,
+            "args": [
+                "--experiment_name=hemibrain-siren-v3",
+                "--dataset=data/hemibrain-volume-noisy-large/test/",
+                "--config=./config/config_siren.json",
+                "--iteration=1"
             ]
         }
     ]

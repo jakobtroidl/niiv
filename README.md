@@ -3,10 +3,10 @@
 ## Getting Started
 
 ```
-conda create -n niv python=3.9
-conda activate niv
+conda create -n niiv python=3.9
+conda activate niiv
 conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
-pip install igneous-pipeline pytorch-ignite tqdm wandb
+pip install igneous-pipeline pytorch-ignite tqdm wandb pytorch-msssim torchmetrics seaborn dists-pytorch lpips ConfigArgParse
 ```
 
 

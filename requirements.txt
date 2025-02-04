@@ -1,0 +1,10 @@
+igneous-pipeline==4.25.1
+pytorch-ignite==0.5.1
+tqdm==4.67.1
+wandb==0.19.5
+pytorch-msssim==1.0.0
+torchmetrics==1.6.1
+seaborn==0.13.2
+DISTS-pytorch==0.1
+lpips==0.1.4
+ConfigArgParse==1.7

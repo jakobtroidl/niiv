@@ -25,12 +25,14 @@
             "name": "Train Images (Hemibrain)",
             "type": "python",
             "request": "launch",
-            "module": "experiments.train_images",
+            "module": "experiments.train_niiv_attn",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-mae-only",
-                "--dataset=data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json"
+                "--experiment_name=hemibrain-vanilla",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
+                "--config=./config/config_cvr_s.json",
+                "--lr=0.0001",
+                "--batch_size=50",
             ]
         },
         {
@@ -66,8 +68,8 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-final-fixed",
-                "--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--experiment_name=hemibrain-train-attn",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
                 "--iteration=1"
             ]

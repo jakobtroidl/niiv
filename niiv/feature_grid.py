@@ -41,8 +41,6 @@ class FeatureGrid():
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        # pe_coords = q_coords
-
         decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
         return decoder_input
     

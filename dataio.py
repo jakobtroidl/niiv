@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import random
 import seaborn as sns
+import wandb
 
 from niiv.util.utils import make_coord
 import pandas as pd
@@ -37,6 +38,10 @@ def create_dir(path, folder):
     return path 
 
 def save_images(path, images, names=None, metrics=None, metric_idx=None):
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
     for i in range(images.shape[0]):
         image = images[i, ...].squeeze()
         if names is None:
@@ -66,7 +71,7 @@ class ImageDatasetTest(Dataset):
         self.anisotropic_factor = info["anisotropic_factor"]
 
         self.avg_pool = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
-        self.data = torch.from_numpy(np.load(self.path)).cuda()
+        self.data = torch.from_numpy(np.load(self.path))
         self.data = self.data.to(torch.float32) / 255.0
         if self.isotropic_test_data:
             self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
@@ -75,31 +80,30 @@ class ImageDatasetTest(Dataset):
 
     def has_isotropic_test_data(self):
         return self.isotropic_test_data
+    
+    def ground_truth(self):
+        return self.data
 
     def __len__(self):
         idx = int(not bool(self.x_or_y))
         return self.anisotropic.shape[-3 + idx]
     
     def __getitem__(self, idx):
-        name = ""
-        if self.x_or_y == 0:
-            input = self.anisotropic[:, idx, :]
-            gt = self.data[:, idx, :]
-            name += "xz_"
-        elif self.x_or_y == 1:
-            input = self.anisotropic[idx, :, :]
-            gt = self.data[idx, :, :]
-            name += "yz_"
-        else:
-            raise ValueError("x_or_y must be 0 or 1")
+        xz_input = self.anisotropic[:, idx, :].unsqueeze(0)
+        xz_gt = self.data[:, idx, :]
+        xz_name = "xz_" + str(idx) + ".png"
 
-        name += str(idx) + ".png" 
+        yz_input = self.anisotropic[idx, :, :].unsqueeze(0)
+        yz_gt = self.data[idx, :, :]
+        yz_name = "yz_" + str(idx) + ".png"
+        
+        xz_coords = make_coord(xz_gt.shape[-2:])
+        yz_coords = make_coord(yz_gt.shape[-2:])
 
-        input = input.unsqueeze(0)
-        gt_linear = gt.unsqueeze(-1)
-        gt_linear = gt_linear.reshape(-1, 1)
-        coords = make_coord(gt.shape[-2:]).cuda()
-        return [input, coords, gt_linear, name]
+        return {
+            "xz": [xz_input, xz_coords, xz_name, idx],
+            "yz": [yz_input, yz_coords, yz_name, idx],
+        }
 
 class ImageDataset(Dataset):
     def __init__(self, path_to_info, train=True, folder=None) -> None:
@@ -116,7 +120,9 @@ class ImageDataset(Dataset):
         self.files = os.listdir(self.path)
         self.anisotropic_factor = info["anisotropic_factor"]
 
-        self.avg_pool2D = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
+        self.avg_pool2D_x = torch.nn.AvgPool2d(kernel_size=[int(self.anisotropic_factor), 1])
+        self.avg_pool2D_y = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
+
         self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
 
         self.isotropic_test_data = info["isotropic_test_data"]
@@ -159,13 +165,18 @@ class ImageDataset(Dataset):
         xy_gt = xy.unsqueeze(0)
         slice = slice.unsqueeze(0)
 
-        xy_inputs = self.avg_pool2D(xy_gt)
+        xy_inputs_x_degraded = self.avg_pool2D_x(xy_gt)
+        xy_inputs_y_degraded = self.avg_pool2D_y(xy_gt)
+
+        # wandb.log({"xy_gt": [wandb.Image(xy_gt.cpu().numpy())]})
+        # wandb.log({"input_x_degraded": [wandb.Image(xy_inputs_x_degraded.cpu().numpy())]})
+        # wandb.log({"input_y_degraded": [wandb.Image(xy_inputs_y_degraded.cpu().numpy())]})
 
         xy_coords = make_coord(xy.shape[-2:]).cuda()
         slice_coords = make_coord(xy.shape[-2:]).cuda()
 
         output = {
-            "xy": [xy_inputs, xy_coords, xy_gt],
+            "xy": [xy_inputs_x_degraded, xy_inputs_y_degraded, xy_coords, xy_gt],
             "slice": [slice, slice_coords, slice_gt], # slice_gt is not used during training
             "meta": [self.x_or_y, xy_idx, slice_idx]
         }

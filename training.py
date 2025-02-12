@@ -11,6 +11,8 @@ import wandb
 from DISTS_pytorch import DISTS
 import lpips
 
+from dataio import create_dir, save_images
+
 def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, summary_fn, opt):
 
     run = wandb.init(project="continuous-volumes", group=opt.experiment_name, config=opt)
@@ -27,7 +29,6 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
     checkpoints_dir = os.path.join(model_dir, 'checkpoints')
     utils.cond_mkdir(checkpoints_dir)
-
 
     total_steps = 0
     train_losses = []
@@ -48,28 +49,23 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                            np.array(train_losses))
             
         for step, data in enumerate(train_dataloader):
-            xy_output = model(data["xy"][0], data["xy"][1]) # inference on simulated xy anisotropic slice
-            xy_gt = data["xy"][2].squeeze(1) # ground truth xy anisotropic slice
+
+            input_x_degraded = data["xy"][0].cuda()
+            input_y_degraded = data["xy"][1].cuda()
+            xy_coords = data["xy"][2].cuda()
+            xy_gt = data["xy"][3].cuda()
+
+            xy_output = model(input_x_degraded, input_y_degraded, xy_coords) # inference on simulated xy anisotropic slice
 
             im_size = int(math.sqrt(xy_output.shape[-2]))
             xy_output = xy_output.view(-1, *(im_size, im_size))
+            xy_output = xy_output.unsqueeze(1)
 
-            mse = mse_loss(xy_output, xy_gt)
-
-            # grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
-            # epoch_weight = torch.sigmoid(0.5 * torch.tensor(epoch) - 70).item() # weight the gradient regularizer less at the beginning of training
-
-            xy_out_normed =  (xy_output.unsqueeze(1) * 2 - 1)
-            xy_gt_normed = (xy_gt.unsqueeze(1) * 2 - 1)
-
-            xy_out_rgb = xy_out_normed.expand(-1, 3, -1, -1)
-            xy_gt_rgb = xy_gt_normed.expand(-1, 3, -1, -1)
-
-            perc_loss = lpips_loss.forward(xy_out_rgb, xy_gt_rgb).mean()
-
-            dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
+            # perc_loss = lpips_loss.forward(xy_out_rgb, xy_gt_rgb).mean()
+            dists_loss = D(xy_output, xy_gt, require_grad=True, batch_average=True) 
             mae = mae_loss(xy_output, xy_gt)
-            total_loss = 30 * mae + dists_loss
+            # total_loss = 30 * mae + dists_loss
+            total_loss = mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -80,20 +76,28 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             total_loss.backward()
             optim.step()
 
-            wandb.log({ "Total Loss": total_loss_avg.item(), 
-                        "MSE Loss": mse.item(),
+            wandb.log({ "Total Loss": total_loss_avg.item(),
                         "DISTS Loss": dists_loss.item(),
+                        "MAE Loss": mae.item(),
                         "Train PSNR": psnr, 
                     })
 
             if not total_steps % steps_til_summary:
                 tqdm.write("Epoch {}, Total Loss {}, MAE Loss {}, DISTS Loss {}".format(epoch, total_loss.item(), mae.item(), dists_loss.item()))
 
+                save_images(os.path.join(model_dir, "qual_train_results"), xy_output)
+                save_images(os.path.join(model_dir, "qual_train_gt"), xy_gt)
+                save_images(os.path.join(model_dir, "qual_train_mae"), torch.abs(xy_output - xy_gt))
+                save_images(os.path.join(model_dir, "qual_train_x_degraded"), input_x_degraded)
+                save_images(os.path.join(model_dir, "qual_train_y_degraded"), input_y_degraded)
+
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),
                                     'optimizer': optim.state_dict(),
                                     'scheduler': scheduler.state_dict(),
                                     }, os.path.join(checkpoints_dir, 'model_latest.pth'))
+                
+
 
             total_steps += 1
             # train_dataloader.dataset.shuffle_x_or_y()

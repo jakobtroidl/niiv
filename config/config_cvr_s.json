@@ -1,6 +1,7 @@
 {
   "cvr": {
     "dim": 2,
+    "mode": "feat_concat",
     "encoder": {
       "otype": "EDSR",
       "n_features": 64,

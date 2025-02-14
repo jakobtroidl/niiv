@@ -27,7 +27,7 @@ class NIIV(nn.Module):
             self.encoder = EDSR2D(args = encoding_config["encoder"])   
 
         # module for latent grid processing
-        self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves)
+        self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves, n_features=n_features)
         model_in = self.grid.n_out(n_features) 
 
         # trainable parameters
@@ -40,4 +40,4 @@ class NIIV(nn.Module):
         features = self.grid.compute_features(image, latent_grid, coords)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
-        return torch.clamp(prediction, 0, 1)
+        return torch.sigmoid(prediction)

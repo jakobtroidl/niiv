@@ -10,6 +10,9 @@ import niiv.regularizer as regularizer
 import wandb
 from DISTS_pytorch import DISTS
 import lpips
+import torchvision.transforms.functional as TF
+import math
+
 
 def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, summary_fn, opt):
 
@@ -48,28 +51,47 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                            np.array(train_losses))
             
         for step, data in enumerate(train_dataloader):
-            xy_output = model(data["xy"][0], data["xy"][1]) # inference on simulated xy anisotropic slice
-            xy_gt = data["xy"][2].squeeze(1) # ground truth xy anisotropic slice
+            x_degraded_out = model(data["x_degraded"][0], data["x_degraded"][1]) # inference on simulated xy anisotropic slice
+            y_degraded_out = model(data["y_degraded"][0], data["y_degraded"][1]) # inference on simulated yz anisotropic slice
+
+            B, N, C = x_degraded_out.shape
+            im_size = int(math.sqrt(N))
+
+            debug_x = x_degraded_out.view(-1, im_size, im_size, 1)
+            y_degraded_out = y_degraded_out.view(-1, im_size, im_size, 1)
+
+            # image = TF.to_pil_image(debug_x[0, ...].squeeze(-1))
+            # image.save("x_degraded_out.png")
+
+            # image = TF.to_pil_image(y_degraded_out[0, ...].squeeze(-1))
+            # image.save("y_degraded_out.png")
+
+            y_degraded_out = y_degraded_out.permute(0, 2, 1, 3)
+            y_degraded_out = y_degraded_out.reshape(B, N, C)
+            
+            # xy_output = (x_degraded_out + y_degraded_out) / 2 
+            xy_output = x_degraded_out
+
+            xy_gt = data["x_degraded"][2].squeeze(1) # ground truth xy anisotropic slice
 
             im_size = int(math.sqrt(xy_output.shape[-2]))
             xy_output = xy_output.view(-1, *(im_size, im_size))
+            y_degraded_out = y_degraded_out.view(-1, *(im_size, im_size))
+            x_degraded_out = x_degraded_out.view(-1, *(im_size, im_size))
 
-            mse = mse_loss(xy_output, xy_gt)
+            mse = mse_loss(y_degraded_out, xy_gt) + mse_loss(x_degraded_out, xy_gt)
+            dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
 
             # grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
             # epoch_weight = torch.sigmoid(0.5 * torch.tensor(epoch) - 70).item() # weight the gradient regularizer less at the beginning of training
 
-            xy_out_normed =  (xy_output.unsqueeze(1) * 2 - 1)
-            xy_gt_normed = (xy_gt.unsqueeze(1) * 2 - 1)
-
-            xy_out_rgb = xy_out_normed.expand(-1, 3, -1, -1)
-            xy_gt_rgb = xy_gt_normed.expand(-1, 3, -1, -1)
-
-            perc_loss = lpips_loss.forward(xy_out_rgb, xy_gt_rgb).mean()
-
-            dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
-            mae = mae_loss(xy_output, xy_gt)
-            total_loss = 30 * mae + dists_loss
+            
+            mae_x = mae_loss(x_degraded_out, xy_gt)
+            mae_y = mae_loss(y_degraded_out, xy_gt)
+            mae = mae_x + mae_y
+            
+            # total_loss = 30 * mae + dists_loss
+            total_loss = mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
@@ -96,12 +118,9 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                                     }, os.path.join(checkpoints_dir, 'model_latest.pth'))
 
             total_steps += 1
-            # train_dataloader.dataset.shuffle_x_or_y()
-
         scheduler.step()
 
     wandb.finish()
-
     torch.save({'epoch': total_steps,
                 'model': model.state_dict(),
                 'optimizer': optim.state_dict(),

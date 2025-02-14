@@ -8,6 +8,8 @@ import torchvision.transforms as transforms
 import numpy as np
 import random
 import seaborn as sns
+import torchvision.transforms.functional as TF
+
 
 from niiv.util.utils import make_coord
 import pandas as pd
@@ -81,25 +83,33 @@ class ImageDatasetTest(Dataset):
         return self.anisotropic.shape[-3 + idx]
     
     def __getitem__(self, idx):
-        name = ""
-        if self.x_or_y == 0:
-            input = self.anisotropic[:, idx, :]
-            gt = self.data[:, idx, :]
-            name += "xz_"
-        elif self.x_or_y == 1:
-            input = self.anisotropic[idx, :, :]
-            gt = self.data[idx, :, :]
-            name += "yz_"
-        else:
-            raise ValueError("x_or_y must be 0 or 1")
+        
+        xz_input = self.anisotropic[:, idx, :]
+        xz_input = xz_input.permute(1, 0) # align to 1, 16, 128 shape 
+        xz_gt = self.data[:, idx, :]
+        xz_gt = xz_gt.permute(1, 0)
+        xz_name = "xz_"
 
-        name += str(idx) + ".png" 
+        yz_input = self.anisotropic[idx, :, :]
+        yz_gt = self.data[idx, :, :]
+        yz_name = "yz_"
 
-        input = input.unsqueeze(0)
-        gt_linear = gt.unsqueeze(-1)
-        gt_linear = gt_linear.reshape(-1, 1)
-        coords = make_coord(gt.shape[-2:]).cuda()
-        return [input, coords, gt_linear, name]
+        xz_name += str(xz_name) + str(idx) + ".png" 
+        yz_name += str(yz_name) + str(idx) + ".png"
+
+        xz_input = xz_input.unsqueeze(0)
+        xz_gt_linear = xz_gt.unsqueeze(-1)
+        xz_gt_linear = xz_gt_linear.reshape(-1, 1)
+        coords = make_coord(xz_gt.shape[-2:]).cuda()
+
+        # # safe xz_input, xz_gt as png file
+        # image = TF.to_pil_image(xz_input)
+        # image.save("test_xz_input.png")
+
+        # image = TF.to_pil_image(xz_gt)
+        # image.save("test_xz_gt.png")
+
+        return [xz_input, coords, xz_gt_linear, xz_name]
 
 class ImageDataset(Dataset):
     def __init__(self, path_to_info, train=True, folder=None) -> None:
@@ -116,7 +126,7 @@ class ImageDataset(Dataset):
         self.files = os.listdir(self.path)
         self.anisotropic_factor = info["anisotropic_factor"]
 
-        self.avg_pool2D = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
+        # self.avg_pool2D = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
         self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
 
         self.isotropic_test_data = info["isotropic_test_data"]
@@ -144,30 +154,34 @@ class ImageDataset(Dataset):
         else:
             anisotropic = gt[:, :, :gt.shape[-1]//self.anisotropic_factor]
 
-        slice_idx = np.random.randint(0, anisotropic.shape[-3 + self.x_or_y])
+        # slice_idx = np.random.randint(0, anisotropic.shape[-3 + self.x_or_y])
         xy_idx = np.random.randint(0, anisotropic.shape[-1])
-
         xy = anisotropic[:, :, xy_idx]
 
-        if self.x_or_y == 1:
-            slice = anisotropic[slice_idx, :, :]
-            slice_gt = gt[slice_idx, :, :]
-        else:
-            slice = anisotropic[:, slice_idx, :]
-            slice_gt = gt[:, slice_idx, :]
-
+        x_degrador = torch.nn.AvgPool2d(kernel_size=[int(self.anisotropic_factor), 1])
+        y_degrador = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
+        
         xy_gt = xy.unsqueeze(0)
-        slice = slice.unsqueeze(0)
-
-        xy_inputs = self.avg_pool2D(xy_gt)
-
+        x_degraded_input = x_degrador(xy_gt)
+        y_degraded_input = y_degrador(xy_gt)
+        
+        y_degraded_input = y_degraded_input.permute(0, 2, 1)
         xy_coords = make_coord(xy.shape[-2:]).cuda()
-        slice_coords = make_coord(xy.shape[-2:]).cuda()
+
+        # # safe x_degraded_input, y_degraded_input as png file
+        # image = TF.to_pil_image(x_degraded_input)
+        # image.save("x_degraded.png")
+
+        # image = TF.to_pil_image(y_degraded_input)
+        # image.save("y_degraded.png")
+
+        # image = TF.to_pil_image(xy_gt)
+        # image.save("xy_gt.png")
+        
 
         output = {
-            "xy": [xy_inputs, xy_coords, xy_gt],
-            "slice": [slice, slice_coords, slice_gt], # slice_gt is not used during training
-            "meta": [self.x_or_y, xy_idx, slice_idx]
+            "x_degraded": [x_degraded_input, xy_coords, xy_gt], # xy slice degraded along x
+            "y_degraded": [y_degraded_input, xy_coords, xy_gt], # xy slice degraded along y
         }
         
         return output

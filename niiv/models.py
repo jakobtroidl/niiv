@@ -40,4 +40,4 @@ class NIIV(nn.Module):
         features = self.grid.compute_features(image, latent_grid, coords)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
-        return torch.sigmoid(prediction)
+        return torch.sigmoid(prediction), features

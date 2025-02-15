@@ -76,6 +76,8 @@ nearest_mcf_psnr_all = torch.empty(0, mcf_psnr.thresholds.shape[0]).cuda()
 times_list = []
 memory_list = []
 
+metric_list = []
+
 for seq in seq_names:
 
     dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, name=seq)
@@ -93,57 +95,105 @@ for seq in seq_names:
     times = []
     memory = []
 
-    for step, (model_input, coords, gt, file_names) in enumerate(dataloader):
+    xz_slices = []
+    yz_slices = []
+
+    for step, data in enumerate(dataloader):
 
         with torch.no_grad():
             start = time.time()
-            prediction = model(coords=coords, image=model_input)
+
+            [xz_input, coords, xz_gt_linear, xz_name] = data['xz']
+            [yz_input, coords, yz_gt_linear, yz_name] = data['yz']
+
+            xz_prediction, _ = model(coords=coords, image=xz_input)
+            yz_prediction, _ = model(coords=coords, image=yz_input)
+
+            # for now, (debugging)
+            prediction = xz_prediction 
+            model_input = xz_input
+            gt = xz_gt_linear
+            file_names = xz_name
+
             duration = time.time() - start
+
+            xz_slices.append(xz_prediction)
+            yz_slices.append(yz_prediction)
             times.append(duration)
 
-            # Get the memory info for your specific process
-            info = nvmlDeviceGetComputeRunningProcesses(device_id)
+            # # Get the memory info for your specific process
+            # info = nvmlDeviceGetComputeRunningProcesses(device_id)
 
-            for proc in info:
-                if proc.pid == pid:
-                    gpu_mem = proc.usedGpuMemory / 1024**2
-                    memory.append(gpu_mem)
-                    break
+            # for proc in info:
+            #     if proc.pid == pid:
+            #         gpu_mem = proc.usedGpuMemory / 1024**2
+            #         memory.append(gpu_mem)
+            #         break
 
-            result_dir = create_dir(seq_res_dir, "result")
-            nearest_dir = create_dir(seq_res_dir, "nearest")
-            bilinear_dir = create_dir(seq_res_dir, "bilinear")
-            gt_dir = create_dir(seq_res_dir, "gt")
-            input_dir = create_dir(seq_res_dir, "input")
+            # result_dir = create_dir(seq_res_dir, "result")
+            # nearest_dir = create_dir(seq_res_dir, "nearest")
+            # bilinear_dir = create_dir(seq_res_dir, "bilinear")
+            # gt_dir = create_dir(seq_res_dir, "gt")
+            # input_dir = create_dir(seq_res_dir, "input")
 
-            side_length = int(math.sqrt(prediction.shape[1]))
-            pred_image = prediction.view(-1, side_length, side_length).unsqueeze(1)
-            gt_image = gt.view(-1, side_length, side_length).unsqueeze(1)
+            # side_length = int(math.sqrt(prediction.shape[1]))
+            # pred_image = prediction.view(-1, side_length, side_length).unsqueeze(1)
+            # gt_image = gt.view(-1, side_length, side_length).unsqueeze(1)
 
-            # export normal interpolated images
-            nearest = F.interpolate(model_input, size=[side_length, side_length], mode='nearest')
-            bilinear = F.interpolate(model_input, size=[side_length, side_length], mode='bilinear', align_corners=False)
+            # # export normal interpolated images
+            # nearest = F.interpolate(model_input, size=[side_length, side_length], mode='nearest')
+            # bilinear = F.interpolate(model_input, size=[side_length, side_length], mode='bilinear', align_corners=False)
 
-            # compute PSNR and other metrics if isotropic test data is available 
-            if dataset.has_isotropic_test_data():
-                result_metrics = torch.cat((result_metrics, compute_all_metrics(pred_image, gt_image)), dim=0)
-                nearest_metrics = torch.cat((nearest_metrics, compute_all_metrics(nearest, gt_image)), dim=0)
-                bilinear_metrics = torch.cat((bilinear_metrics, compute_all_metrics(bilinear, gt_image)), dim=0)
+            # # compute PSNR and other metrics if isotropic test data is available 
+            # if dataset.has_isotropic_test_data():
+            #     result_metrics = torch.cat((result_metrics, compute_all_metrics(pred_image, gt_image)), dim=0)
+            #     nearest_metrics = torch.cat((nearest_metrics, compute_all_metrics(nearest, gt_image)), dim=0)
+            #     bilinear_metrics = torch.cat((bilinear_metrics, compute_all_metrics(bilinear, gt_image)), dim=0)
 
-                result_mcf_psnr = torch.cat((result_mcf_psnr, mcf_psnr(pred_image, gt_image)), dim=0)
-                bilinear_mcf_psnr = torch.cat((bilinear_mcf_psnr, mcf_psnr(bilinear, gt_image)), dim=0)
-                nearest_mcf_psnr = torch.cat((nearest_mcf_psnr, mcf_psnr(nearest, gt_image)), dim=0)
+            #     result_mcf_psnr = torch.cat((result_mcf_psnr, mcf_psnr(pred_image, gt_image)), dim=0)
+            #     bilinear_mcf_psnr = torch.cat((bilinear_mcf_psnr, mcf_psnr(bilinear, gt_image)), dim=0)
+            #     nearest_mcf_psnr = torch.cat((nearest_mcf_psnr, mcf_psnr(nearest, gt_image)), dim=0)
 
-                save_images(result_dir, pred_image, file_names, metrics=result_metrics, metric_idx=0)
-                save_images(nearest_dir, nearest, file_names, metrics=nearest_metrics, metric_idx=0)
-                save_images(bilinear_dir, bilinear, file_names, metrics=bilinear_metrics, metric_idx=0)
-                save_images(gt_dir, gt_image, file_names)
-            else:
-                save_images(result_dir, pred_image, file_names)
-                save_images(nearest_dir, nearest, file_names)
-                save_images(bilinear_dir, bilinear, file_names)
+            #     save_images(result_dir, pred_image, file_names, metrics=result_metrics, metric_idx=0)
+            #     save_images(nearest_dir, nearest, file_names, metrics=nearest_metrics, metric_idx=0)
+            #     save_images(bilinear_dir, bilinear, file_names, metrics=bilinear_metrics, metric_idx=0)
+            #     save_images(gt_dir, gt_image, file_names)
+            # else:
+            #     save_images(result_dir, pred_image, file_names)
+            #     save_images(nearest_dir, nearest, file_names)
+            #     save_images(bilinear_dir, bilinear, file_names)
 
-            save_images(input_dir, model_input, file_names)
+            # save_images(input_dir, model_input, file_names)
+
+
+    # concat xz and yz slices
+    xz_vol = torch.cat(xz_slices, dim=0)
+    yz_vol = torch.cat(yz_slices, dim=0)
+
+    xz_vol = xz_vol.reshape(128, 128, 128, 1).squeeze(-1)
+    # xz_vol = xz_vol.permute(1, 0, 2)
+    yz_vol = yz_vol.reshape(128, 128, 128, 1).squeeze(-1)
+    yz_vol = yz_vol.permute(2, 1, 0)
+
+    vol = (xz_vol + yz_vol) / 2.0
+    vol = vol.permute(0, 2, 1)
+    vol = vol.permute(1, 0, 2)
+
+    gt = dataset.gt()
+
+    #store as .npy file
+    np.save("xz_vol.npy", xz_vol.cpu().numpy())
+    np.save("yz_vol.npy", yz_vol.cpu().numpy())
+    np.save("vol.npy", vol.cpu().numpy())
+    np.save("gt.npy", gt.cpu().numpy())
+
+    # compute PSNR between vol and gt
+    result_metrics = compute_all_metrics(vol.unsqueeze(1), gt.unsqueeze(1))
+    # compute mean of result_metrics
+    result_metrics = result_metrics.mean(dim=0).unsqueeze(0)
+    metric_list.append(result_metrics)
+
+    print(result_metrics)
     
     output = "-------------------------------\n"
     output += "Sequence: {}\n".format(seq)
@@ -196,6 +246,8 @@ output = "-------------------------------\n"
 output += "Summary Results\n"
 output += "Reconstruction Time: {} sec\n".format(np.mean(times_list))
 output += "Memory: {} MB\n".format(np.mean(memory_list))
+output += "{}".format(torch.stack(metric_list).mean(dim=0))
+
 
 
 if dataset.has_isotropic_test_data():

@@ -4,6 +4,8 @@ from tqdm.autonotebook import tqdm
 import numpy as np
 import os
 from ignite.metrics import PSNR, SSIM
+import torch.nn.functional as F
+
 
 import math
 import niiv.regularizer as regularizer
@@ -12,6 +14,9 @@ from DISTS_pytorch import DISTS
 import lpips
 import torchvision.transforms.functional as TF
 import math
+
+import torchvision.utils as vutils
+
 
 
 def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, summary_fn, opt):
@@ -39,6 +44,9 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     mse_loss = torch.nn.MSELoss()
     mae_loss = torch.nn.L1Loss()
     D = DISTS().cuda()
+
+    feat_reg = regularizer.FeatureRegularizer()
+
     lpips_loss = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
 
     model.train()
@@ -51,28 +59,47 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                            np.array(train_losses))
             
         for step, data in enumerate(train_dataloader):
-            x_degraded_out = model(data["x_degraded"][0], data["x_degraded"][1]) # inference on simulated xy anisotropic slice
-            y_degraded_out = model(data["y_degraded"][0], data["y_degraded"][1]) # inference on simulated yz anisotropic slice
+            x_degraded_out, x_deg_features = model(data["x_degraded"][0], data["x_degraded"][1]) # inference on simulated xy anisotropic slice
+            y_degraded_out, y_deg_features = model(data["y_degraded"][0], data["y_degraded"][1]) # inference on simulated yz anisotropic slice
 
             B, N, C = x_degraded_out.shape
             im_size = int(math.sqrt(N))
 
             debug_x = x_degraded_out.view(-1, im_size, im_size, 1)
+            image = TF.to_pil_image(debug_x[0, ...].squeeze(-1))
+            image.save("x_degraded_out.png")
+
             y_degraded_out = y_degraded_out.view(-1, im_size, im_size, 1)
-
-            # image = TF.to_pil_image(debug_x[0, ...].squeeze(-1))
-            # image.save("x_degraded_out.png")
-
-            # image = TF.to_pil_image(y_degraded_out[0, ...].squeeze(-1))
-            # image.save("y_degraded_out.png")
-
             y_degraded_out = y_degraded_out.permute(0, 2, 1, 3)
-            y_degraded_out = y_degraded_out.reshape(B, N, C)
-            
-            # xy_output = (x_degraded_out + y_degraded_out) / 2 
-            xy_output = x_degraded_out
 
-            xy_gt = data["x_degraded"][2].squeeze(1) # ground truth xy anisotropic slice
+            image = TF.to_pil_image(y_degraded_out[0, ...].squeeze(-1))
+            image.save("y_degraded_out.png")
+
+            y_degraded_out = y_degraded_out.reshape(B, N, C)
+
+            y_deg_features = y_deg_features.view(-1, im_size, im_size, y_deg_features.shape[-1])
+            y_deg_features = y_deg_features.permute(0, 2, 1, 3)
+            y_deg_features = y_deg_features.reshape(B, N, y_deg_features.shape[-1])
+
+            reg, dists = feat_reg(y_deg_features[..., :64], x_deg_features[..., :64])
+            # reg, dists = feat_reg(y_degraded_out, x_degraded_out)
+
+            dists_out = dists.view(-1, im_size, im_size)
+            # normalize to [0, 1]
+            dists_out = (dists_out - dists_out.min()) / (dists_out.max() - dists_out.min())
+
+            vutils.save_image(dists_out[0, ...], "output.png")
+
+            xy_output = (x_degraded_out + y_degraded_out) / 2 
+
+            # xy_output_plot = xy_output.view(-1, im_size, im_size, 1)
+            # image = TF.to_pil_image(xy_output_plot[0, ...].squeeze(-1))
+            # image.save("x_degraded_y_degraded_combinbed_out.png")
+            # xy_output = x_degraded_out
+
+            xy_gt = data["x_degraded"][2].squeeze(1)
+            # image = TF.to_pil_image(xy_gt[0, ...])
+            # image.save("xy_gt_out.png")   # ground truth xy anisotropic slice
 
             im_size = int(math.sqrt(xy_output.shape[-2]))
             xy_output = xy_output.view(-1, *(im_size, im_size))
@@ -81,21 +108,25 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             mse = mse_loss(y_degraded_out, xy_gt) + mse_loss(x_degraded_out, xy_gt)
             dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
-
-            # grad_reg = gradient_regularizer(xy_output, epoch, step, weight=1.0)
-            # epoch_weight = torch.sigmoid(0.5 * torch.tensor(epoch) - 70).item() # weight the gradient regularizer less at the beginning of training
-
             
             mae_x = mae_loss(x_degraded_out, xy_gt)
             mae_y = mae_loss(y_degraded_out, xy_gt)
-            mae = mae_x + mae_y
-            
-            # total_loss = 30 * mae + dists_loss
-            total_loss = mae
+            mae = mae_x + mae_y 
+
+            # mae = mae_loss(xy_output, xy_gt)
+            total_loss = mae # + reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
             psnr = psnr_metric.compute()
+            psnr_metric.reset()
+
+            psnr_metric.update((x_degraded_out, xy_gt))
+            psnr_x = psnr_metric.compute()
+            psnr_metric.reset()
+
+            psnr_metric.update((y_degraded_out, xy_gt))
+            psnr_y = psnr_metric.compute()
             psnr_metric.reset()
 
             optim.zero_grad()
@@ -106,6 +137,9 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                         "MSE Loss": mse.item(),
                         "DISTS Loss": dists_loss.item(),
                         "Train PSNR": psnr, 
+                        "Train PSNR X": psnr_x,
+                        "Train PSNR Y": psnr_y,
+                        "Feat Dists": reg.item(),
                     })
 
             if not total_steps % steps_til_summary:

@@ -77,6 +77,9 @@ class ImageDatasetTest(Dataset):
 
     def has_isotropic_test_data(self):
         return self.isotropic_test_data
+    
+    def gt(self):
+        return self.data
 
     def __len__(self):
         idx = int(not bool(self.x_or_y))
@@ -91,8 +94,12 @@ class ImageDatasetTest(Dataset):
         xz_name = "xz_"
 
         yz_input = self.anisotropic[idx, :, :]
+        yz_input = yz_input.permute(1, 0) # align to 1, 16, 128 shape 
+        yz_input = yz_input.unsqueeze(0)
         yz_gt = self.data[idx, :, :]
         yz_name = "yz_"
+        yz_gt_linear = yz_gt.unsqueeze(-1)
+        yz_gt_linear = yz_gt_linear.reshape(-1, 1)
 
         xz_name += str(xz_name) + str(idx) + ".png" 
         yz_name += str(yz_name) + str(idx) + ".png"
@@ -109,7 +116,10 @@ class ImageDatasetTest(Dataset):
         # image = TF.to_pil_image(xz_gt)
         # image.save("test_xz_gt.png")
 
-        return [xz_input, coords, xz_gt_linear, xz_name]
+        xz_outs = [xz_input, coords, xz_gt_linear, xz_name]
+        yz_outs = [yz_input, coords, yz_gt_linear, yz_name]
+
+        return {"xz": xz_outs, "yz": yz_outs}
 
 class ImageDataset(Dataset):
     def __init__(self, path_to_info, train=True, folder=None) -> None:

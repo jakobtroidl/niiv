@@ -5,6 +5,33 @@ from torchmetrics.functional.image import image_gradients
 from niiv.util.transforms import crop_image_border
 import matplotlib.pyplot as plt
 from niiv.util.eval_metrics import FourierDenoiser
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+
+class FeatureRegularizer(nn.Module):
+    def __init__(self):
+        super(FeatureRegularizer, self).__init__()
+
+    def forward(self, f1, f2):
+        # f1 = F.normalize(f1, p=2, dim=-1)
+        # f2 = F.normalize(f2, p=2, dim=-1)
+
+        # dists = torch.norm(f1 - f2, p=2, dim=-1) 
+        # # dists = dists / 2.0 # normalize to [0, 1]
+        # #dists = torch.abs(dists)
+        # avg = torch.mean(dists)
+        # #avg = torch.mean(avg)
+
+        dists = 1.0 - F.cosine_similarity(f1, f2, dim=-1)
+        avg = torch.mean(dists)
+
+
+        plt.hist(dists.flatten().detach().cpu().numpy(), bins=100)
+        plt.savefig('dists-histogram.png')
+        plt.clf()
+
+        return avg, dists
 
 
 class GradientRegularizer(nn.Module):

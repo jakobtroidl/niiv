@@ -27,8 +27,6 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optim, milestones=[2000, 4000, 6000, 8000], gamma=0.5)
 
     total_loss_avg = utils.Averager()
-    # avg_pool = torch.nn.AvgPool2d(kernel_size=[1, int(7.5)]) 
-    gradient_regularizer = regularizer.GradientRegularizer()
 
     summaries_dir = os.path.join(model_dir, 'summaries')
     utils.cond_mkdir(summaries_dir)
@@ -46,6 +44,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
     D = DISTS().cuda()
 
     feat_reg = regularizer.FeatureRegularizer()
+    feat_sim_reg = regularizer.FeatPairSimilarity()
+    feat_smthness = regularizer.FeatSpaceSmoothness()
 
     lpips_loss = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
 
@@ -59,38 +59,67 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                            np.array(train_losses))
             
         for step, data in enumerate(train_dataloader):
-            x_degraded_out, x_deg_features = model(data["x_degraded"][0], data["x_degraded"][1]) # inference on simulated xy anisotropic slice
-            y_degraded_out, y_deg_features = model(data["y_degraded"][0], data["y_degraded"][1]) # inference on simulated yz anisotropic slice
 
-            B, N, C = x_degraded_out.shape
+
+            pred, f1, f2, pred_f1, pred_f2 = model.fwd_train(
+                data["x_degraded"][0], 
+                data["y_degraded"][0],
+                data["x_degraded"][1],
+            )
+
+            # x_degraded_out, x_deg_features = model(data["x_degraded"][0], data["x_degraded"][1]) # inference on simulated xy anisotropic slice
+            # y_degraded_out, y_deg_features = model(data["y_degraded"][0], data["y_degraded"][1]) # inference on simulated yz anisotropic slice
+
+            B, N, C = f1.shape
             im_size = int(math.sqrt(N))
 
-            debug_x = x_degraded_out.view(-1, im_size, im_size, 1)
-            image = TF.to_pil_image(debug_x[0, ...].squeeze(-1))
-            image.save("x_degraded_out.png")
+            f_mae = torch.norm(f1 - f2, dim=-1, p=2)
+            f_mae = f_mae.view(-1, im_size, im_size)
+            f_mae = f_mae / f_mae.max()
 
-            y_degraded_out = y_degraded_out.view(-1, im_size, im_size, 1)
-            y_degraded_out = y_degraded_out.permute(0, 2, 1, 3)
+            vutils.save_image(f_mae[0, ...], "f_mae.png")
 
-            image = TF.to_pil_image(y_degraded_out[0, ...].squeeze(-1))
-            image.save("y_degraded_out.png")
+            pred_f1 = pred_f1.view(-1, im_size, im_size)
+            vutils.save_image(pred_f1[0, ...], "pred_f1.png")
 
-            y_degraded_out = y_degraded_out.reshape(B, N, C)
+            pred_f2 = pred_f2.view(-1, im_size, im_size)
+            vutils.save_image(pred_f2[0, ...], "pred_f2.png")
 
-            y_deg_features = y_deg_features.view(-1, im_size, im_size, y_deg_features.shape[-1])
-            y_deg_features = y_deg_features.permute(0, 2, 1, 3)
-            y_deg_features = y_deg_features.reshape(B, N, y_deg_features.shape[-1])
+            pred = pred.view(-1, im_size, im_size)
+            vutils.save_image(pred[0, ...], "pred.png")
 
-            reg, dists = feat_reg(y_deg_features[..., :64], x_deg_features[..., :64])
-            # reg, dists = feat_reg(y_degraded_out, x_degraded_out)
+            # debug_x = x_degraded_out.view(-1, im_size, im_size, 1)
+            # image = TF.to_pil_image(debug_x[0, ...].squeeze(-1))
+            # image.save("x_degraded_out.png")
 
-            dists_out = dists.view(-1, im_size, im_size)
-            # normalize to [0, 1]
-            dists_out = (dists_out - dists_out.min()) / (dists_out.max() - dists_out.min())
+            # y_degraded_out = y_degraded_out.view(-1, im_size, im_size, 1)
+            # y_degraded_out = y_degraded_out.permute(0, 2, 1, 3)
 
-            vutils.save_image(dists_out[0, ...], "output.png")
+            # image = TF.to_pil_image(y_degraded_out[0, ...].squeeze(-1))
+            # image.save("y_degraded_out.png")
 
-            xy_output = (x_degraded_out + y_degraded_out) / 2 
+            # y_degraded_out = y_degraded_out.reshape(B, N, C)
+
+            # y_deg_features = y_deg_features.view(-1, im_size, im_size, y_deg_features.shape[-1])
+            # y_deg_features = y_deg_features.permute(0, 2, 1, 3)
+            # y_deg_features = y_deg_features.reshape(B, N, y_deg_features.shape[-1])
+
+            # # reg, dists = feat_reg(y_degraded_out, x_degraded_out)
+
+            # dists_out = dists.view(-1, im_size, im_size)
+            # dists_out = (dists_out - dists_out.min()) / (dists_out.max() - dists_out.min())
+
+            # vutils.save_image(dists_out[0, ...], "output.png")
+
+            # reg, dists = feat_reg(f1[..., :64], f2[..., :64])
+
+            smooth_loss = feat_smthness(f1, pred) + feat_smthness(f2, pred)
+
+            # smooth_loss = feat_sim_reg(f1, pred) + feat_sim_reg(f2, pred) 
+            xy_output = pred.view(-1, im_size, im_size)
+
+
+            # xy_output = (x_degraded_out + y_degraded_out) / 2 
 
             # xy_output_plot = xy_output.view(-1, im_size, im_size, 1)
             # image = TF.to_pil_image(xy_output_plot[0, ...].squeeze(-1))
@@ -98,52 +127,54 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # xy_output = x_degraded_out
 
             xy_gt = data["x_degraded"][2].squeeze(1)
-            # image = TF.to_pil_image(xy_gt[0, ...])
-            # image.save("xy_gt_out.png")   # ground truth xy anisotropic slice
+            # # image = TF.to_pil_image(xy_gt[0, ...])
+            # # image.save("xy_gt_out.png")   # ground truth xy anisotropic slice
 
-            im_size = int(math.sqrt(xy_output.shape[-2]))
-            xy_output = xy_output.view(-1, *(im_size, im_size))
-            y_degraded_out = y_degraded_out.view(-1, *(im_size, im_size))
-            x_degraded_out = x_degraded_out.view(-1, *(im_size, im_size))
+            # im_size = int(math.sqrt(xy_output.shape[-2]))
+            # xy_output = xy_output.view(-1, *(im_size, im_size))
+            # y_degraded_out = y_degraded_out.view(-1, *(im_size, im_size))
+            # x_degraded_out = x_degraded_out.view(-1, *(im_size, im_size))
 
-            mse = mse_loss(y_degraded_out, xy_gt) + mse_loss(x_degraded_out, xy_gt)
-            dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
+            # mse = mse_loss(y_degraded_out, xy_gt) + mse_loss(x_degraded_out, xy_gt)
+            # dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
             
-            mae_x = mae_loss(x_degraded_out, xy_gt)
-            mae_y = mae_loss(y_degraded_out, xy_gt)
-            mae = mae_x + mae_y 
+            # mae_x = mae_loss(x_degraded_out, xy_gt)
+            # mae_y = mae_loss(y_degraded_out, xy_gt)
+            # mae = mae_x + mae_y 
 
+            mae = mae_loss(xy_output, xy_gt)
+            reg = smooth_loss * 0.001
             # mae = mae_loss(xy_output, xy_gt)
-            total_loss = mae # + reg
+            total_loss = mae + reg
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))
             psnr = psnr_metric.compute()
             psnr_metric.reset()
 
-            psnr_metric.update((x_degraded_out, xy_gt))
-            psnr_x = psnr_metric.compute()
-            psnr_metric.reset()
+            # psnr_metric.update((x_degraded_out, xy_gt))
+            # psnr_x = psnr_metric.compute()
+            # psnr_metric.reset()
 
-            psnr_metric.update((y_degraded_out, xy_gt))
-            psnr_y = psnr_metric.compute()
-            psnr_metric.reset()
+            # psnr_metric.update((y_degraded_out, xy_gt))
+            # psnr_y = psnr_metric.compute()
+            # psnr_metric.reset()
 
             optim.zero_grad()
             total_loss.backward()
             optim.step()
 
             wandb.log({ "Total Loss": total_loss_avg.item(), 
-                        "MSE Loss": mse.item(),
-                        "DISTS Loss": dists_loss.item(),
+                        # "MSE Loss": mse.item(),
+                        # "DISTS Loss": dists_loss.item(),
                         "Train PSNR": psnr, 
-                        "Train PSNR X": psnr_x,
-                        "Train PSNR Y": psnr_y,
+                        # "Train PSNR X": psnr_x,
+                        # "Train PSNR Y": psnr_y,
                         "Feat Dists": reg.item(),
                     })
 
             if not total_steps % steps_til_summary:
-                tqdm.write("Epoch {}, Total Loss {}, MAE Loss {}, DISTS Loss {}".format(epoch, total_loss.item(), mae.item(), dists_loss.item()))
+                tqdm.write("Epoch {}, Total Loss {}, MAE Loss {}".format(epoch, total_loss.item(), mae.item()))
 
                 torch.save({'epoch': total_steps,
                                     'model': model.state_dict(),

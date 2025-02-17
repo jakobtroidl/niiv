@@ -98,6 +98,9 @@ for seq in seq_names:
     xz_slices = []
     yz_slices = []
 
+    xz_slices_feat = []
+    yz_slices_feat = []
+
     for step, data in enumerate(dataloader):
 
         with torch.no_grad():
@@ -106,8 +109,8 @@ for seq in seq_names:
             [xz_input, coords, xz_gt_linear, xz_name] = data['xz']
             [yz_input, coords, yz_gt_linear, yz_name] = data['yz']
 
-            xz_prediction, _ = model(coords=coords, image=xz_input)
-            yz_prediction, _ = model(coords=coords, image=yz_input)
+            xz_prediction, xz_feats = model(coords=coords, image=xz_input)
+            yz_prediction, yz_feats = model(coords=coords, image=yz_input)
 
             # for now, (debugging)
             prediction = xz_prediction 
@@ -119,6 +122,9 @@ for seq in seq_names:
 
             xz_slices.append(xz_prediction)
             yz_slices.append(yz_prediction)
+            xz_slices_feat.append(xz_feats)
+            yz_slices_feat.append(yz_feats)
+
             times.append(duration)
 
             # # Get the memory info for your specific process
@@ -171,13 +177,33 @@ for seq in seq_names:
     yz_vol = torch.cat(yz_slices, dim=0)
 
     xz_vol = xz_vol.reshape(128, 128, 128, 1).squeeze(-1)
-    # xz_vol = xz_vol.permute(1, 0, 2)
     yz_vol = yz_vol.reshape(128, 128, 128, 1).squeeze(-1)
     yz_vol = yz_vol.permute(2, 1, 0)
 
     vol = (xz_vol + yz_vol) / 2.0
     vol = vol.permute(0, 2, 1)
     vol = vol.permute(1, 0, 2)
+
+    xz_feats_vol = torch.cat(xz_slices_feat, dim=0)
+    yz_feats_vol = torch.cat(yz_slices_feat, dim=0)
+
+    xz_feats_vol = xz_feats_vol.reshape(128, 128, 128, -1).squeeze(-1)
+    yz_feats_vol = yz_feats_vol.reshape(128, 128, 128, -1).squeeze(-1)
+    yz_feats_vol = yz_feats_vol.permute(2, 1, 0, 3)
+
+    vol_feats_mae = torch.norm(xz_feats_vol - yz_feats_vol, dim=-1)
+    # normalize to [0, 1]
+    vol_feats_mae = vol_feats_mae / vol_feats_mae.max()
+    np.save("vol_feats_mae.npy", vol_feats_mae.detach().cpu().numpy())
+
+
+    vol_feats = (xz_feats_vol + yz_feats_vol) / 2.0
+    vol_feats = vol_feats.permute(0, 2, 1, 3)
+    vol_feats = vol_feats.permute(1, 0, 2, 3)
+    vol_feats = vol_feats.view(128, 128 * 128, -1)
+
+    pred = model.decoder(vol_feats.reshape(128 ** 3, -1)).reshape(128, 128, 128)
+    pred = torch.sigmoid(pred)
 
     gt = dataset.gt()
 
@@ -186,6 +212,7 @@ for seq in seq_names:
     np.save("yz_vol.npy", yz_vol.cpu().numpy())
     np.save("vol.npy", vol.cpu().numpy())
     np.save("gt.npy", gt.cpu().numpy())
+    np.save("pred.npy", pred.detach().cpu().numpy())
 
     # compute PSNR between vol and gt
     result_metrics = compute_all_metrics(vol.unsqueeze(1), gt.unsqueeze(1))

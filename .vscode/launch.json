@@ -30,7 +30,7 @@
             "args": [
                 "--experiment_name=hemibrain-mae-only-reproduce",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json"
+                "--config=./config/config_cvr_tiny.json"
             ]
         },
         {
@@ -66,10 +66,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-train-comb-loss-v2",
+                "--experiment_name=hemibrain-train-learnable-queries",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=1"
+                "--iteration=4"
             ]
         },
         {
@@ -83,7 +83,7 @@
                 //"--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--dataset=data/fafb-130/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=4"
+                "--iteration=1"
             ]
         },
         {

@@ -35,6 +35,7 @@ p.add_argument('--steps_til_summary', type=int, default=50,
                help='Time interval in seconds until tensorboard summary is saved.')
 p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
 p.add_argument('--batch_size', type=int, default=20, help="Batch size")
+p.add_argument('--augment', type=bool, default=True, help="Augment data")
 opt = p.parse_args()
 
 
@@ -49,7 +50,7 @@ print("Data path is {}".format(data_path))
 model = NIIV(out_features=1, encoding_config=config["cvr"])
 model.cuda()
 
-image_dataset = dataio.ImageDataset(path_to_info=opt.dataset)
+image_dataset = dataio.ImageDataset(path_to_info=opt.dataset, augment=opt.augment)
 dataloader = DataLoader(image_dataset, shuffle=True, batch_size=opt.batch_size, num_workers=0)
 
 params = utils.get_n_params(model) # TODO update this function

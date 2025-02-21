@@ -9,6 +9,8 @@ import numpy as np
 import random
 import seaborn as sns
 import torchvision.transforms.functional as TF
+import torch.nn.functional as F
+
 
 
 from niiv.util.utils import make_coord
@@ -36,7 +38,45 @@ def create_dir(path, folder):
     path = os.path.join(path, folder)
     if not os.path.exists(path):
         os.makedirs(path)
-    return path 
+    return path
+
+
+def gaussian_blur_3d(volume, kernel_size=5, sigma=1.0):
+    """Applies 3D Gaussian blur to a volume."""
+    device = volume.device
+    kernel = gaussian_kernel_3d(kernel_size, sigma, device)
+    
+    # Ensure the volume has the correct shape (C, D, H, W)
+    if volume.dim() == 3:  # If shape is (D, H, W), add channel dimension
+        volume = volume.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, D, H, W)
+    elif volume.dim() == 4:  # If shape is (C, D, H, W), add batch dimension
+        volume = volume.unsqueeze(0)  # Shape: (1, C, D, H, W)
+    
+    # Apply convolution with padding
+    padding = kernel_size // 2  # Same padding to maintain size
+    blurred_volume = F.conv3d(volume, kernel, padding=padding, groups=volume.shape[1])
+    
+    # Remove batch dimension if needed
+    return blurred_volume.squeeze(0) if volume.shape[0] == 1 else blurred_volume 
+
+
+def gaussian_kernel_3d(kernel_size=5, sigma=1.0, device="cpu"):
+    """Creates a 3D Gaussian kernel."""
+    # Generate coordinate grids
+    coords = torch.arange(kernel_size, dtype=torch.float32, device=device) - kernel_size // 2
+    grid_x, grid_y, grid_z = torch.meshgrid(coords, coords, coords, indexing="ij")
+    
+    # Compute the Gaussian function
+    kernel = torch.exp(-(grid_x**2 + grid_y**2 + grid_z**2) / (2 * sigma**2))
+    
+    # Normalize to ensure sum equals 1
+    kernel /= kernel.sum()
+    
+    # Reshape for 3D convolution (out_channels, in_channels, D, H, W)
+    kernel = kernel.view(1, 1, kernel_size, kernel_size, kernel_size)
+    
+    return kernel
+
 
 def save_images(path, images, names=None, metrics=None, metric_idx=None):
     for i in range(images.shape[0]):
@@ -112,7 +152,7 @@ class ImageDatasetTest(Dataset):
         return [xz_input, coords, xz_gt_linear, xz_name]
 
 class ImageDataset(Dataset):
-    def __init__(self, path_to_info, train=True, folder=None) -> None:
+    def __init__(self, path_to_info, train=True, folder=None, augment=True) -> None:
         super().__init__()
         info = json.loads(open(path_to_info).read())
         self.is_train = train
@@ -131,6 +171,7 @@ class ImageDataset(Dataset):
 
         self.isotropic_test_data = info["isotropic_test_data"]
         self.x_or_y = random.randint(0, 1)
+        self.augment = augment
     
     def shuffle_x_or_y(self):
         self.x_or_y = random.randint(0, 1)
@@ -148,6 +189,18 @@ class ImageDataset(Dataset):
         image = np.load(path)
         transform = transforms.ToTensor() # Transform to tensor
         gt = transform(image).cuda() # Transform to tensor, already in [0, 1]
+
+
+        if self.augment:
+            dims = torch.tensor([0, 1, 2])
+            idx = torch.randperm(dims.size(0))
+            gt = gt.permute(*dims[idx])
+        
+        
+        # vol_blur = gaussian_blur_3d(gt, kernel_size=5, sigma=1.0).squeeze()
+        # # only keep every 8th slice
+        # vol_blur = vol_blur[:, :, ::self.anisotropic_factor]
+
 
         if self.isotropic_test_data:
             anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()

@@ -54,7 +54,7 @@ def gaussian_blur_3d(volume, kernel_size=5, sigma=1.0):
     
     # Apply convolution with padding
     padding = kernel_size // 2  # Same padding to maintain size
-    blurred_volume = F.conv3d(volume, kernel, padding=padding, groups=volume.shape[1])
+    blurred_volume = F.conv3d(volume, kernel, padding="same", groups=volume.shape[1])
     
     # Remove batch dimension if needed
     return blurred_volume.squeeze(0) if volume.shape[0] == 1 else blurred_volume 
@@ -100,20 +100,31 @@ class ImageDatasetTest(Dataset):
     def __init__(self, path_to_info, name, x_or_y=0) -> None:
         super().__init__()
         info = json.loads(open(path_to_info).read())
-        self.path = os.path.join(os.path.dirname(path_to_info), "test")
+        self.path = os.path.join(os.path.dirname(path_to_info), "train")
         self.path = os.path.join(self.path, name)
         assert x_or_y == 0 or x_or_y == 1
         self.x_or_y = x_or_y
         self.isotropic_test_data = bool(info["isotropic_test_data"])
         self.anisotropic_factor = info["anisotropic_factor"]
 
-        self.avg_pool = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
-        self.data = torch.from_numpy(np.load(self.path)).cuda()
-        self.data = self.data.to(torch.float32) / 255.0
-        if self.isotropic_test_data:
-            self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
-        else:
-            self.anisotropic = self.data[:, :, :self.data.shape[-1]//self.anisotropic_factor]
+        # self.avg_pool = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])  
+        image = np.load(self.path)
+        transform = transforms.ToTensor() # Transform to tensor
+        self.data = transform(image).cuda()
+
+        self.anisotropic = gaussian_blur_3d(self.data, kernel_size=5, sigma=1.0).squeeze()
+
+
+        # self.anisotropic = vol_blur[:, :, ::self.anisotropic_factor]
+
+        # save self.anisotropic as npy file
+        np.save("test_anisotropic.npy", self.anisotropic.cpu().numpy())
+        
+        
+        # if self.isotropic_test_data:
+        #     self.anisotropic = self.avg_pool(self.data.unsqueeze(0).unsqueeze(0)).squeeze()
+        # else:
+        #     self.anisotropic = self.data[:, :, :self.data.shape[-1]//self.anisotropic_factor]
 
     def has_isotropic_test_data(self):
         return self.isotropic_test_data
@@ -125,8 +136,15 @@ class ImageDatasetTest(Dataset):
     def __getitem__(self, idx):
         
         xz_input = self.anisotropic[:, idx, :]
+
+        # save as png
+        image = TF.to_pil_image(xz_input)
+        image.save("test_xz_input_pre.png")
+
+
+        xz_input = F.interpolate(xz_input.unsqueeze(0).unsqueeze(0), size=(128, 128//self.anisotropic_factor), mode="bilinear", align_corners=False).squeeze(0).squeeze(0)
         xz_input = xz_input.permute(1, 0) # align to 1, 16, 128 shape 
-        xz_gt = self.data[:, idx, :]
+        xz_gt = self.anisotropic[:, idx, :]
         xz_gt = xz_gt.permute(1, 0)
         xz_name = "xz_"
 
@@ -142,12 +160,12 @@ class ImageDatasetTest(Dataset):
         xz_gt_linear = xz_gt_linear.reshape(-1, 1)
         coords = make_coord(xz_gt.shape[-2:]).cuda()
 
-        # # safe xz_input, xz_gt as png file
-        # image = TF.to_pil_image(xz_input)
-        # image.save("test_xz_input.png")
+        # safe xz_input, xz_gt as png file
+        image = TF.to_pil_image(xz_input)
+        image.save("test_xz_input.png")
 
-        # image = TF.to_pil_image(xz_gt)
-        # image.save("test_xz_gt.png")
+        image = TF.to_pil_image(xz_gt)
+        image.save("test_xz_gt.png")
 
         return [xz_input, coords, xz_gt_linear, xz_name]
 
@@ -167,7 +185,7 @@ class ImageDataset(Dataset):
         self.anisotropic_factor = info["anisotropic_factor"]
 
         # self.avg_pool2D = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
-        self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
+        # self.avg_pool3D = torch.nn.AvgPool3d(kernel_size=[1, 1, int(self.anisotropic_factor)])
 
         self.isotropic_test_data = info["isotropic_test_data"]
         self.x_or_y = random.randint(0, 1)
@@ -197,26 +215,26 @@ class ImageDataset(Dataset):
             gt = gt.permute(*dims[idx])
         
         
-        # vol_blur = gaussian_blur_3d(gt, kernel_size=5, sigma=1.0).squeeze()
-        # # only keep every 8th slice
-        # vol_blur = vol_blur[:, :, ::self.anisotropic_factor]
+        vol_blur = gaussian_blur_3d(gt, kernel_size=5, sigma=1.0).squeeze()
+        # only keep every 8th slice
+        anisotropic = vol_blur[:, :, ::self.anisotropic_factor]
 
 
-        if self.isotropic_test_data:
-            anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()
-        else:
-            anisotropic = gt[:, :, :gt.shape[-1]//self.anisotropic_factor]
+        # if self.isotropic_test_data:
+        #     anisotropic = self.avg_pool3D(gt.unsqueeze(0)).squeeze()
+        # else:
+        #     anisotropic = gt[:, :, :gt.shape[-1]//self.anisotropic_factor]
 
         # slice_idx = np.random.randint(0, anisotropic.shape[-3 + self.x_or_y])
         xy_idx = np.random.randint(0, anisotropic.shape[-1])
         xy = anisotropic[:, :, xy_idx]
 
-        x_degrador = torch.nn.AvgPool2d(kernel_size=[int(self.anisotropic_factor), 1])
-        y_degrador = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
-        
+        # x_degrador = torch.nn.AvgPool2d(kernel_size=[int(self.anisotropic_factor), 1])
+        # y_degrador = torch.nn.AvgPool2d(kernel_size=[1, int(self.anisotropic_factor)])
+        W, H = xy.shape
         xy_gt = xy.unsqueeze(0)
-        x_degraded_input = x_degrador(xy_gt)
-        y_degraded_input = y_degrador(xy_gt)
+        x_degraded_input = F.interpolate(xy_gt.unsqueeze(0), size=(W//self.anisotropic_factor, H), mode="bilinear", align_corners=False).squeeze(0)
+        y_degraded_input = F.interpolate(xy_gt.unsqueeze(0), size=(W, H//self.anisotropic_factor), mode="bilinear", align_corners=False).squeeze(0)
         
         y_degraded_input = y_degraded_input.permute(0, 2, 1)
         xy_coords = make_coord(xy.shape[-2:]).cuda()
@@ -236,5 +254,15 @@ class ImageDataset(Dataset):
             "x_degraded": [x_degraded_input, xy_coords, xy_gt], # xy slice degraded along x
             "y_degraded": [y_degraded_input, xy_coords, xy_gt], # xy slice degraded along y
         }
+
+        # save x_degraded, y_degraded, xy_gt as png file
+        image = TF.to_pil_image(x_degraded_input)
+        image.save("x_degraded.png")
+
+        image = TF.to_pil_image(y_degraded_input)
+        image.save("y_degraded.png")
+
+        image = TF.to_pil_image(xy_gt)
+        image.save("xy_gt.png")
         
         return output

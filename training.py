@@ -69,7 +69,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             dists_loss = D(xy_output.unsqueeze(1), xy_gt.unsqueeze(1), require_grad=True, batch_average=True) 
             mae = mae_loss(xy_output, xy_gt)
-            total_loss = 30 * mae + dists_loss
+            # total_loss = 30 * mae + dists_loss
+            total_loss = mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))

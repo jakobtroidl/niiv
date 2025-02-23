@@ -8,6 +8,34 @@ from niiv.encoders import swinir
 from niiv.decoder import inr
 from niiv.decoder.field_siren import FieldSiren
 
+class Attention(nn.Module):
+    def __init__(self, dim, n_heads=1):
+        super().__init__()
+        self.dim = dim
+        self.n_heads = n_heads
+        self.attn = nn.MultiheadAttention(dim, n_heads, batch_first=True)
+
+    def forward(self, x):
+        out, weights = self.attn(x, x, x)
+        return out
+    
+class Decoder(nn.Module):
+    def __init__(self, dim, n_heads=1, output_dim=128):
+        super().__init__()
+        self.dim = dim
+        self.n_heads = n_heads
+        self.queries = torch.nn.Parameter(torch.randn(1, output_dim**2, dim))
+        self.attn = nn.MultiheadAttention(dim, n_heads, batch_first=True)
+        self.proj = nn.Linear(dim, 1)
+
+    def forward(self, x):
+        bs, q, _ = x.shape
+        queries = self.queries.repeat(bs, 1, 1)
+        out, weights = self.attn(queries, x, x)
+        out = self.proj(out)
+        return out
+
+
 class NIIV(nn.Module):
     def __init__(self, out_features=1, encoding_config=None, n_pos_enc_octaves=2, **kwargs):
         super().__init__()
@@ -28,7 +56,9 @@ class NIIV(nn.Module):
 
         # module for latent grid processing
         self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves)
+        self.attn = Attention(n_features)
         model_in = self.grid.n_out(n_features) 
+
 
         # trainable parameters
         # self.encoder = rdn.make_rdn()
@@ -37,7 +67,8 @@ class NIIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        features = self.grid.compute_features(image, latent_grid, coords)
+        features = self.grid.compute_features(image, latent_grid, coords, attn=self.attn)
+        # features = self.grid.compute_features(image, latent_grid, coords)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
-        return torch.clamp(prediction, 0, 1)
+        return torch.sigmoid(prediction)

@@ -29,7 +29,7 @@
             "justMyCode": true,
             "args": [
                 "--experiment_name=hemibrain-mae-only",
-                "--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
         },
@@ -66,10 +66,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-final-fixed",
-                "--dataset=data/hemibrain-volume-noisy-large/info.json",
+                "--experiment_name=hemibrain-attn",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=1"
+                "--iteration=7"
             ]
         },
         {

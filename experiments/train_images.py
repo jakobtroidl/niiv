@@ -34,7 +34,7 @@ p.add_argument('--epochs_til_ckpt', type=int, default=1000, help='Time interval 
 p.add_argument('--steps_til_summary', type=int, default=50,
                help='Time interval in seconds until tensorboard summary is saved.')
 p.add_argument('--dataset', type=str, required=True, help="Dataset Path, (e.g., /data/UVG/Jockey)")
-p.add_argument('--batch_size', type=int, default=20, help="Batch size")
+p.add_argument('--batch_size', type=int, default=10, help="Batch size")
 opt = p.parse_args()
 
 

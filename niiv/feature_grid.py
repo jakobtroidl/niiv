@@ -13,7 +13,7 @@ class FeatureGrid():
         return n_in + self.pos_enc.d_out(2) + 1
         # return n_in + 2 + 1
     
-    def compute_features(self, image, latents, coords):
+    def compute_features(self, image, latents, coords, attn=None):
 
         if self.feature_unfold:
             # concat each latent by it's local neighborhood
@@ -41,6 +41,9 @@ class FeatureGrid():
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
+        if attn is not None:
+            q_features = attn(q_features)
+            
         # pe_coords = q_coords
 
         decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)

@@ -58,7 +58,7 @@ model.load_state_dict(checkpoint['model'])
 model.eval()
 
 dir = os.path.dirname(opt.dataset)
-test_seq_dir = os.path.join(dir, "test")
+test_seq_dir = os.path.join(dir, "train")
 results_dir = create_dir(root_path, 'results_iteration_{}'.format(opt.iteration))
 
 metric_names = ["PSNR", "SSIM", "CF_PSNR"]

@@ -11,11 +11,11 @@
             "module": "experiments.create_dataset",
             "justMyCode": true,
             "args": [
-                "--name=liconn-400",
-                //"--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
+                "--name=hemibrain-256-256-256",
+                "--path=https://storage.googleapis.com/neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg",
                 //"--path=https://storage.googleapis.com/neuroglancer-fafb-data/fafb_v14/fafb_v14_clahe",
-                "--path=https://storage.googleapis.com/liconn-public/ExPID82_1/image_230130b",
-                "--image_size=128",
+                // "--path=https://storage.googleapis.com/liconn-public/ExPID82_1/image_230130b",
+                "--image_size=256",
                 "--n_vols=400",
                 "--train",
                 //"--coord_list_path=/home/jakobtroidl/Desktop/neural-volumes/data/hubmap-lightsheet-spleen/coords.json"
@@ -29,8 +29,8 @@
             "justMyCode": true,
             "args": [
                 "--experiment_name=hemibrain-mae-only-reproduce",
-                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_tiny.json"
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-256-256-256-mip-1/info.json",
+                "--config=./config/config_cvr_s.json"
             ]
         },
         {
@@ -66,10 +66,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-train-learnable-queries",
+                "--experiment_name=hemibrain-train-learnable-queries-gaussian-blur",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=4"
+                "--iteration=1"
             ]
         },
         {

@@ -126,7 +126,7 @@ class NIIV(nn.Module):
 
         self.cross_attn = CrossAttention(dim=n_features, n_heads=1, dropout=0.0)
 
-        self.query_tokens = nn.Parameter(torch.randn(1, 128 * 128, n_features))
+        self.query_tokens = nn.Parameter(torch.randn(1, 256 * 256, n_features))
 
 
         # model_in = self.grid.n_out(n_features) 
@@ -149,12 +149,12 @@ class NIIV(nn.Module):
 
         # compute features using bilinear interpolation
         latent_grid_ = latent_grid.reshape(B, H, W, C).permute(0, 3, 1, 2)        
-        _, q_input, pe_coords = self.grid.compute_features(image, latent_grid_, coords)
+        features, q_input, pe_coords = self.grid.compute_features(image, latent_grid_, coords)
 
-        queries = self.query_tokens.expand(B, -1, -1)  # (B, 128*128, C)
+        # queries = self.query_tokens.expand(B, -1, -1)  # (B, 128*128, C)
 
         # cross attention
-        features = self.cross_attn(queries, latent_grid, latent_grid)
+        features = self.cross_attn(features, latent_grid, latent_grid)
         features = torch.cat([features, q_input, pe_coords], dim=-1)
 
         prediction = self.decoder(features.reshape(B * W * W, -1)).reshape(B, W * W, -1)

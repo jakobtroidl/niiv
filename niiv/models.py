@@ -89,7 +89,7 @@ class Attention(nn.Module):
         self.attn = nn.MultiheadAttention(dim, n_heads, batch_first=True)
 
     def forward(self, x, context):
-        out, _ = self.attn(x, context, context, need_weights=False)
+        out, _ = self.attn(x, context, context)
         return out
     
 
@@ -143,7 +143,7 @@ class NIIV(nn.Module):
     def __init__(self, out_features=1, encoding_config=None, n_pos_enc_octaves=2, **kwargs):
         super().__init__()
 
-        self.feat_unfold = False
+        self.feat_unfold = True
 
         if encoding_config is None:
             n_features = 64
@@ -159,10 +159,10 @@ class NIIV(nn.Module):
 
         # module for latent grid processing
         self.grid = FeatureGrid(feat_unfold=self.feat_unfold, n_pos_encoding=n_pos_enc_octaves)
-        # self.attn = Attention(n_features)
+        self.attn = Attention(n_features)
         model_in = self.grid.n_out(n_features) 
 
-        self.wa = WindowAttention(dim=n_features, window_size=4, num_heads=1)
+        # self.wa = WindowAttention(dim=n_features, window_size=16, num_heads=1)
 
 
         # trainable parameters
@@ -173,12 +173,12 @@ class NIIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        latent_grid = latent_grid.permute(0, 2, 3, 1)
-        latent_grid = self.wa(latent_grid)
-        latent_grid = latent_grid.permute(0, 3, 1, 2)
+        # latent_grid = latent_grid.permute(0, 2, 3, 1)
+        # latent_grid = self.wa(latent_grid)
+        # latent_grid = latent_grid.permute(0, 3, 1, 2)
 
         # features = self.grid.compute_features(image, latent_grid, coords, attn=self.attn)
-        features = self.grid.compute_features(image, latent_grid, coords)
+        features = self.grid.compute_features(image, latent_grid, coords, self.attn)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
 

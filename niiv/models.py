@@ -173,17 +173,7 @@ class NIIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        latent_grid = latent_grid.permute(0, 2, 3, 1)
-        latent_grid = self.wa(latent_grid)
-        latent_grid = latent_grid.permute(0, 3, 1, 2)
-
-        # features = self.grid.compute_features(image, latent_grid, coords, attn=self.attn)
         features = self.grid.compute_features(image, latent_grid, coords)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
-
-        # B, C, H, W = latent_grid.shape
-        # latent_grid = latent_grid.permute(0, 2, 3, 1).reshape(B, H*W, C)
-
-        
         return torch.sigmoid(prediction)

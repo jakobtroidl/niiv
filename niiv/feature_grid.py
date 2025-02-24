@@ -10,7 +10,8 @@ class FeatureGrid():
     def n_out(self, n_in):
         if self.feature_unfold:
             return n_in * 9
-        return n_in + self.pos_enc.d_out(2) + 1
+        # return n_in + self.pos_enc.d_out(2) + 1
+        return n_in + 2
         # return n_in + 2 + 1
     
     def compute_features(self, image, latents, coords, attn=None):
@@ -41,12 +42,8 @@ class FeatureGrid():
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        if attn is not None:
-            q_features = attn(q_features)
-
-        # pe_coords = q_coords
-
-        decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
+        # decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
+        decoder_input = torch.cat((q_features, q_coords), dim=-1)
         return decoder_input
     
     def unfold_features(self, latents):

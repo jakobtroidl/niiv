@@ -43,7 +43,7 @@ class FeatureGrid():
 
         if attn is not None:
             q_features = attn(q_features)
-            
+
         # pe_coords = q_coords
 
         decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)

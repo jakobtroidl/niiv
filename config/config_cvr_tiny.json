@@ -3,8 +3,8 @@
     "dim": 2,
     "encoder": {
       "otype": "EDSR",
-      "n_features": 64,
-      "n_resblocks": 6,
+      "n_features": 32,
+      "n_resblocks": 2,
       "res_scale": 1,
       "scale": 3,
       "no_upsampling": true,
@@ -13,7 +13,7 @@
     },
     "network": {
       "n_neurons": 256,
-      "n_hidden_layers": 5
+      "n_hidden_layers": 2
     }
   }
 }

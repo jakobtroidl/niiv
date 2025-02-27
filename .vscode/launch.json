@@ -30,7 +30,7 @@
             "args": [
                 "--experiment_name=hemibrain-mae-only",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json"
+                "--config=./config/config_cvr_tiny.json"
             ]
         },
         {

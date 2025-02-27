@@ -31,7 +31,7 @@ class FeatureGrid():
         if self.feature_unfold:
             B, N, C = q_features.shape
             uf = q_features.permute(0, 2, 1)
-            uf = q_features.reshape(uf.shape[0], uf.shape[1], 128, 128)
+            uf = q_features.reshape(uf.shape[0], uf.shape[1], latents.shape[-2], latents.shape[-2])
             latents_unfold = self.unfold_features(uf)
             latents_unfold = latents_unfold.permute(0, 3, 1, 2).reshape(B * N, -1, C)
 
@@ -54,7 +54,7 @@ class FeatureGrid():
         return decoder_input
     
     def unfold_features(self, latents):
-        unfold_list = [-2, -1, 0, 1, 2]
+        unfold_list = [-1, 0, 1]
         bs, n_feat, x_dim, y_dim = latents.shape
 
         x_idx = torch.arange(0, latents.shape[-2], dtype=torch.int64).cuda()

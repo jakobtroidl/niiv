@@ -66,10 +66,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-attn-feature-interp-v5",
+                "--experiment_name=hemibrain-zhang-small-32-dec-units",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=6"
+                "--iteration=2"
             ]
         },
         {

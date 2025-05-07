@@ -41,7 +41,7 @@
             "justMyCode": true,
             "args": [
                 "--experiment_name=fafb-130-v2",
-                "--dataset=data/fafb-130/info.json",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/fafb-130/info.json",
                 // "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
@@ -79,11 +79,11 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=fafb-130-v2",
+                "--experiment_name=hemibrain-zhang-fafb",
                 //"--dataset=data/hemibrain-volume-noisy-large/info.json",
-                "--dataset=data/fafb-130/info.json",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/fafb-130/info.json",
                 "--config=./config/config_cvr_s.json",
-                "--iteration=3"
+                "--iteration=1"
             ]
         },
         {

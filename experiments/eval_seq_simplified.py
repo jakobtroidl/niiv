@@ -81,7 +81,7 @@ metric_list = []
 for seq in seq_names:
 
     dataset = dataio.ImageDatasetTest(path_to_info=opt.dataset, name=seq)
-    dataloader = DataLoader(dataset, shuffle=False, batch_size=63, num_workers=0) # prev batch size 63
+    dataloader = DataLoader(dataset, shuffle=False, batch_size=15, num_workers=0) # prev batch size 63
 
     seq_res_dir = create_dir(results_dir, seq)
     result_metrics = torch.empty(0, len(metric_names)).cuda()

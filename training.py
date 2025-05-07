@@ -143,9 +143,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
             # mae = mae_x + mae_y 
 
             mae = mae_loss(xy_output, xy_gt)
-            reg = smooth_loss * 0.001
-            # mae = mae_loss(xy_output, xy_gt)
-            total_loss = mae + reg
+            # total_loss = 30 * mae + dists_loss
+            total_loss = mae
             total_loss_avg.add(total_loss.item())
 
             psnr_metric.update((xy_output, xy_gt))

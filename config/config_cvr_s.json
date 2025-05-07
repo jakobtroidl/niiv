@@ -4,7 +4,7 @@
     "encoder": {
       "otype": "EDSR",
       "n_features": 64,
-      "n_resblocks": 16,
+      "n_resblocks": 6,
       "res_scale": 1,
       "scale": 3,
       "no_upsampling": true,

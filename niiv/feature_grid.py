@@ -82,44 +82,11 @@ class FeatureGrid(nn.Module):
     def n_out(self, n_in):
         if self.feature_unfold:
             return n_in * 9
-        return n_in + self.pos_enc.d_out(2) + 1
+        # return n_in + self.pos_enc.d_out(2) + 1
+        return n_in + 2
         # return n_in + 2 + 1
-
-    def nearest_features(self, grid_features, grid_coords, query_coords, N):
-        """
-        Finds the N nearest features for each query coordinate.
-
-        Args:
-            grid_features (torch.Tensor): Feature grid of shape (H, W, C) where C is the feature dimension.
-            grid_coords (torch.Tensor): 2D coordinates of shape (H, W, 2) corresponding to grid positions.
-            query_coords (torch.Tensor): Query coordinates of shape (Q, 2) where Q is the number of query points.
-            N (int): Number of nearest neighbors to find.
-
-        Returns:
-            torch.Tensor: Nearest features of shape (Q, N, C).
-            torch.Tensor: Distances of shape (Q, N).
-        """
-        grid_features = grid_features.permute(0, 2, 3, 1)
-        grid_coords = grid_coords.permute(0, 2, 3, 1)
-        B, H, W, C = grid_features.shape
-        
-        grid_coords_flat = grid_coords.reshape(B, -1, 2)
-        distances = torch.cdist(query_coords, grid_coords_flat, p=2)
-        nearest_indices = torch.topk(distances, k=N, largest=False).indices  # Shape: (Q, N)       
-        
-        grid_features_flat = grid_features.reshape(-1, C)  # Shape: (H*W, C)
-        nearest_features = grid_features_flat[nearest_indices]  # Shape: (Q, N, C)
-
-        nearest_dists = distances.gather(1, nearest_indices)
-
-        # sort the nearest features by distance to the query point
-        idx = torch.argsort(nearest_dists, dim=-1)
-        nearest_features = nearest_features[idx]
-
-        return nearest_features
-
     
-    def compute_features(self, image, latents, coords, use_attn=True, K = 9):
+    def compute_features(self, image, latents, coords, attn=None):
 
         if self.feature_unfold:
             # concat each latent by it's local neighborhood
@@ -149,14 +116,10 @@ class FeatureGrid(nn.Module):
         q_input = q_input.squeeze(2).squeeze(2)
         q_input = q_input.permute(0, 2, 1)
 
-        # if use_attn:
-        #     q_features = q_features.reshape(B * N, C).unsqueeze(1)
-        #     attn_out = self.feat_attn(q_features, context = nearest_features)
-        #     q_features = attn_out.squeeze(1).reshape(B, N, C)
-
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
+        # decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
+        decoder_input = torch.cat((q_features, q_coords), dim=-1)
         return decoder_input
     
     def unfold_features(self, latents):

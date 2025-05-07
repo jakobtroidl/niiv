@@ -52,7 +52,7 @@ config = config["cvr"]
 # Model Loading
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
 
-path = os.path.join(root_path, 'checkpoints', "model_latest.pth")
+path = os.path.join(root_path, 'checkpoints', "model_epoch_0900.pth")
 checkpoint = torch.load(path)
 model.load_state_dict(checkpoint['model'])
 model.eval()

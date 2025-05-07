@@ -80,17 +80,12 @@ class FeatureGrid(nn.Module):
         # self.input_attn = nn.MultiheadAttention(embed_dim=1, num_heads=1, batch_first=True)
     
     def n_out(self, n_in):
-        if self.feature_unfold:
-            return n_in * 9
-        # return n_in + self.pos_enc.d_out(2) + 1
-        return n_in + 2
+        # if self.feature_unfold:
+        #     return n_in * 9
+        return n_in + self.pos_enc.d_out(2) + 1
         # return n_in + 2 + 1
     
     def compute_features(self, image, latents, coords, attn=None):
-
-        if self.feature_unfold:
-            # concat each latent by it's local neighborhood
-            latents = self.unfold_features(latents)
 
         # interpolate feature coordinates
         feature_coords = make_coord(latents.shape[-2:], flatten=False).cuda()
@@ -108,6 +103,19 @@ class FeatureGrid(nn.Module):
         q_features = q_features.squeeze(2).squeeze(2)
         q_features = q_features.permute(0, 2, 1)
 
+        
+        if self.feature_unfold:
+            B, N, C = q_features.shape
+            uf = q_features.permute(0, 2, 1)
+            uf = q_features.reshape(uf.shape[0], uf.shape[1], latents.shape[-2], latents.shape[-2])
+            latents_unfold = self.unfold_features(uf)
+            latents_unfold = latents_unfold.permute(0, 3, 1, 2).reshape(B * N, -1, C)
+
+            q_f = q_features.reshape(-1, 1, q_features.shape[-1])
+            q_f = attn(q_f, context=latents_unfold)
+            q_f = q_f.squeeze(1)
+            q_features = q_f.reshape(B, N, C)
+
         q_coords = torch.nn.functional.grid_sample(feature_coords, coords_.flip(-1), mode='bilinear', align_corners=None)
         q_coords = q_coords.squeeze(2).squeeze(2)
         q_coords = q_coords.permute(0, 2, 1)
@@ -118,8 +126,7 @@ class FeatureGrid(nn.Module):
 
         pe_coords = self.pos_enc((q_coords + 1.0) / 2.0)
 
-        # decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
-        decoder_input = torch.cat((q_features, q_coords), dim=-1)
+        decoder_input = torch.cat((q_features, q_input, pe_coords.squeeze()), dim=-1)
         return decoder_input
     
     def unfold_features(self, latents):
@@ -146,5 +153,6 @@ class FeatureGrid(nn.Module):
                 nbh = latents[:, :, vx, vy]
                 neighbors.append(nbh)
 
-        latents = torch.stack(neighbors, dim=1).view(bs, n_feat * len(unfold_list)**2, x_dim, y_dim)
+        latents = torch.stack(neighbors, dim=1)
+        # latents = latents.view(bs, n_feat * len(unfold_list)**2, x_dim, y_dim)
         return latents

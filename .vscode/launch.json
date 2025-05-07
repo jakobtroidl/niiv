@@ -30,7 +30,7 @@
             "args": [
                 "--experiment_name=hemibrain-mae-only",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json"
+                "--config=./config/config_cvr_tiny.json"
             ]
         },
         {
@@ -42,8 +42,7 @@
             "args": [
                 "--experiment_name=fafb-130-v2",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/fafb-130/info.json",
-                // "--dataset=data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json"
+                "--config=./config/config_cvr_tiny.json"
             ]
         },
         {
@@ -54,7 +53,7 @@
             "justMyCode": true,
             "args": [
                 "--experiment_name=liconn-v2",
-                "--dataset=data/liconn-400/info.json",
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/liconn-400/info.json",
                 // "--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--config=./config/config_cvr_s.json"
             ]
@@ -66,10 +65,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-zhang-small-32-dec-units",
+                "--experiment_name=hemibrain-mae-only",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/hemibrain-volume-noisy-large/info.json",
-                "--config=./config/config_cvr_s.json",
-                "--iteration=2"
+                "--config=./config/config_cvr_tiny.json",
+                "--iteration=2000"
             ]
         },
         {
@@ -79,10 +78,10 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=hemibrain-zhang-fafb",
+                "--experiment_name=hemibrain-ours-fafb-revision",
                 //"--dataset=data/hemibrain-volume-noisy-large/info.json",
                 "--dataset=/nrs/turaga/jakob/neural-volumes/data/fafb-130/info.json",
-                "--config=./config/config_cvr_s.json",
+                "--config=./config/config_cvr_tiny.json",
                 "--iteration=1"
             ]
         },
@@ -93,11 +92,11 @@
             "module": "experiments.eval_seq_simplified",
             "justMyCode": true,
             "args": [
-                "--experiment_name=liconn-v2",
+                "--experiment_name=hemibrain-ours-liconn",
                 //"--dataset=data/hemibrain-volume-noisy-large/info.json",
-                "--dataset=data/liconn-400/info.json",
-                "--config=./config/config_cvr_s.json",
-                "--iteration=7"
+                "--dataset=/nrs/turaga/jakob/neural-volumes/data/liconn-400/info.json",
+                "--config=./config/config_cvr_tiny.json",
+                "--iteration=1"
             ]
         },
         {

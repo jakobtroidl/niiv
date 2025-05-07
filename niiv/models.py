@@ -70,16 +70,6 @@ class WindowAttention(nn.Module):
         out = out.view(B, H, W, C)
         return out
 
-# # Example usage:
-# if __name__ == '__main__':
-#     B, H, W, C = 2, 8, 8, 64  # Batch size, Height, Width, Channels
-#     window_size = 4
-#     num_heads = 4
-#     x = torch.randn(B, H, W, C)
-#     win_attn = WindowAttention(dim=C, window_size=window_size, num_heads=num_heads, dropout=0.1)
-#     out = win_attn(x)
-#     print("Output shape:", out.shape)  # Expected: [B, H, W, C]
-
 
 class Attention(nn.Module):
     def __init__(self, dim, n_heads=1):
@@ -162,9 +152,6 @@ class NIIV(nn.Module):
         self.attn = Attention(n_features)
         model_in = self.grid.n_out(n_features) 
 
-        # self.wa = WindowAttention(dim=n_features, window_size=16, num_heads=1)
-
-
         # trainable parameters
         # self.encoder = rdn.make_rdn()
         # self.encoder = swinir.make_swinir()
@@ -173,17 +160,7 @@ class NIIV(nn.Module):
 
     def forward(self, image, coords):
         latent_grid = self.encoder(image)
-        # latent_grid = latent_grid.permute(0, 2, 3, 1)
-        # latent_grid = self.wa(latent_grid)
-        # latent_grid = latent_grid.permute(0, 3, 1, 2)
-
-        # features = self.grid.compute_features(image, latent_grid, coords, attn=self.attn)
         features = self.grid.compute_features(image, latent_grid, coords, self.attn)
         bs, q = coords.squeeze(1).squeeze(1).shape[:2]
         prediction = self.decoder(features.view(bs * q, -1)).view(bs, q, -1)
-
-        # B, C, H, W = latent_grid.shape
-        # latent_grid = latent_grid.permute(0, 2, 3, 1).reshape(B, H*W, C)
-
-        
         return torch.sigmoid(prediction)
